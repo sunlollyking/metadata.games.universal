@@ -1,0 +1,178 @@
+"""Parse a ROM file name into a title plus release attributes.
+
+Handles No-Intro / Redump (Title (Region) (Langs) (Rev 1) (Beta) ...),
+TOSEC (Title (1985)(Publisher)[a][cr Group]) and GoodTools ([!] [b1] [h1]).
+Everything recognised is stripped into fields; what is left is the title.
+"""
+import re
+from typing import Any, Dict
+
+REGIONS = {
+    "usa": "USA", "us": "USA", "u": "USA", "canada": "Canada",
+    "europe": "Europe", "eu": "Europe", "e": "Europe",
+    "japan": "Japan", "jp": "Japan", "j": "Japan",
+    "world": "World", "w": "World", "asia": "Asia",
+    "australia": "Australia", "brazil": "Brazil", "china": "China", "france": "France",
+    "germany": "Germany", "italy": "Italy", "spain": "Spain", "netherlands": "Netherlands",
+    "sweden": "Sweden", "korea": "Korea", "taiwan": "Taiwan", "hong kong": "Hong Kong",
+    "uk": "United Kingdom", "united kingdom": "United Kingdom", "russia": "Russia",
+    "poland": "Poland", "finland": "Finland", "denmark": "Denmark", "norway": "Norway",
+    "portugal": "Portugal", "greece": "Greece", "israel": "Israel", "india": "India",
+    "mexico": "Mexico", "argentina": "Argentina", "unknown": "Unknown",
+    "scandinavia": "Scandinavia", "latin america": "Latin America",
+}
+LANGS = {"en", "ja", "fr", "de", "es", "it", "nl", "pt", "sv", "no", "da", "fi", "zh",
+         "ko", "pl", "ru", "cs", "hu", "el", "tr", "ar", "he", "ca", "th", "hr", "ro", "bg",
+         "uk", "sk", "sl", "lt", "lv", "et", "ga", "eu", "gl", "id", "ms", "vi", "fa"}
+DEVSTATUS = [
+    (re.compile(r"^beta( ?\d+)?$", re.I), "beta"),
+    (re.compile(r"^proto(type)?( ?\d+)?$", re.I), "proto"),
+    (re.compile(r"^sample$", re.I), "sample"),
+    (re.compile(r"^(demo|kiosk|preview|trial|taikenban|kiosk demo|demo \d+)(.*)$", re.I), "demo"),
+    (re.compile(r"^alpha$", re.I), "alpha"),
+    (re.compile(r"^debug( version)?$", re.I), "debug"),
+    (re.compile(r"^(program|check program|sample program|test program)$", re.I), "program"),
+]
+LICENCE = [
+    (re.compile(r"^unl(icensed)?$", re.I), "unlicensed"),
+    (re.compile(r"^pirate$", re.I), "pirate"),
+    (re.compile(r"^aftermarket$", re.I), "aftermarket"),
+    (re.compile(r"^homebrew$", re.I), "homebrew"),
+]
+REV = re.compile(r"^(rev|revision|version|v)\.? ?([0-9][0-9a-z.]*|[a-z])$", re.I)
+ALT = re.compile(r"^alt( ?\d+)?$", re.I)
+DISC = re.compile(r"^(disc|disk|side|tape|cd|cart|part) ?([0-9a-z]+)( of (\d+))?$", re.I)
+TOSEC_YEAR = re.compile(r"^(19|20)\d\d(-\d\d(-\d\d)?)?$|^(19|20)[x?][x?]$|^(19|20)\d[x?]$")
+BRACKET_TAGS = re.compile(r"\[([^\]]*)\]")
+PAREN_TAGS = re.compile(r"\(([^()]*)\)")
+EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,4}$")
+LEADING_NUMBER = re.compile(r"^0\d{2,4}\s+-?\s*")
+ARTICLE = re.compile(r"^([^-]*?), (The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las)((?: - .*)?)$", re.I)
+NOISE = {"gb compatible", "sgb enhanced", "enhancement chip", "rumble version",
+         "virtual console", "nintendo power", "np", "st", "mb", "wii virtual console",
+         "3ds virtual console", "wii u virtual console", "switch online", "en,ja"}
+
+
+def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
+    """Split a file or catalogue name into title and tags.
+
+    Catalogue names carry no extension, so callers pass strip_extension=False
+    for them to keep a trailing ".2" of a version number intact.
+    """
+    name = filename
+    if strip_extension:
+        name = EXTENSION.sub("", name)
+    # "0123 - Game" is a catalogue number a DS set puts in front of the title,
+    # but "007 - GoldenEye" is the game's own name with its number moved to the
+    # front. The number is taken off and kept, so a match can be tried both ways.
+    leading = LEADING_NUMBER.match(name)
+    catalogue_number = leading.group(0).strip(" -") if leading else ""
+    name = LEADING_NUMBER.sub("", name)
+    out = {
+        "title": None, "regions": [], "languages": [], "revision": None,
+        "devstatus": "retail", "licence": "licensed", "alt": False, "bad": False,
+        "verified": False, "hack": False, "translation": None, "disc": None,
+        "discs": None, "year": None, "publisher": None, "unknown": [],
+        "number": catalogue_number,
+    }
+    for tag in BRACKET_TAGS.findall(name):
+        t = tag.strip()
+        tl = t.lower()
+        if tl == "!":
+            out["verified"] = True
+        elif re.match(r"^b\d*$", tl):
+            out["bad"] = True
+        elif re.match(r"^(h|f|o|p|t)\d*.*$", tl) and not tl.startswith("t-") and not tl.startswith("t+"):
+            if tl[0] == "h":
+                out["hack"] = True
+            elif tl[0] == "p":
+                out["licence"] = "pirate"
+            elif tl[0] == "t":
+                out["unknown"].append(t)
+        elif re.match(r"^a\d*$", tl):
+            out["alt"] = True
+        elif tl.startswith("t+") or tl.startswith("t-"):
+            out["translation"] = t[2:4].lower()
+        elif tl.startswith("cr ") or tl.startswith("cr-"):
+            out["unknown"].append(t)
+        elif tl == "bios":
+            out["devstatus"] = "bios"
+        else:
+            out["unknown"].append(t)
+    name = BRACKET_TAGS.sub("", name)
+
+    for tag in PAREN_TAGS.findall(name):
+        t = tag.strip()
+        tl = t.lower()
+        parts = [p.strip() for p in t.split(",")]
+        pl = [p.lower() for p in parts]
+        if all(p in REGIONS for p in pl):
+            out["regions"].extend(REGIONS[p] for p in pl)
+            continue
+        if all(p in LANGS for p in pl) and len(pl) >= 1 and all(len(p) == 2 for p in pl):
+            out["languages"].extend(pl)
+            continue
+        if REV.match(t):
+            out["revision"] = t
+            continue
+        m = DISC.match(t)
+        if m:
+            out["disc"] = m.group(2)
+            out["discs"] = m.group(4)
+            continue
+        hit = False
+        for rx, val in DEVSTATUS:
+            if rx.match(t):
+                out["devstatus"] = val
+                hit = True
+                break
+        if hit:
+            continue
+        for rx, val in LICENCE:
+            if rx.match(t):
+                out["licence"] = val
+                hit = True
+                break
+        if hit:
+            continue
+        if ALT.match(t):
+            out["alt"] = True
+            continue
+        if tl in ("hack", "hacked"):
+            out["hack"] = True
+            continue
+        if TOSEC_YEAR.match(t):
+            out["year"] = t[:4] if t[:4].isdigit() else None
+            out["_tosec"] = True
+            continue
+        if tl in NOISE:
+            continue
+        if out.get("_tosec") and out["publisher"] is None and not any(ch.isdigit() for ch in t[:1]):
+            out["publisher"] = t
+            continue
+        out["unknown"].append(t)
+    name = PAREN_TAGS.sub("", name)
+    title = re.sub(r"\s+", " ", name).strip(" -_")
+    out["title"] = title
+    out["display"] = display_title(title)
+    return out
+
+
+def display_title(title: str) -> str:
+    """Restore a trailing article: "Legend of Zelda, The" -> "The Legend of Zelda"."""
+    m = ARTICLE.match(title)
+    if m:
+        return "{} {}{}".format(m.group(2), m.group(1), m.group(3))
+    return title
+
+
+_norm_rx = re.compile(r"[^a-z0-9]+")
+
+
+def normalise(title: str) -> str:
+    """Key for exact comparison: lower, article-neutral, punctuation-free."""
+    t = display_title(title).lower()
+    t = t.replace("&", " and ")
+    t = re.sub(r"\b(the|a|an)\b", " ", t)
+    t = _norm_rx.sub("", t)
+    return t

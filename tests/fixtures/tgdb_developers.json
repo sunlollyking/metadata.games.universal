@@ -1,0 +1,21 @@
+{
+ "code": 200,
+ "status": "Success",
+ "remaining_monthly_allowance": 249,
+ "extra_allowance": 0,
+ "allowance_refresh_timer": 2592000,
+ "data": {
+  "count": 1,
+  "developers": {
+   "1296": {
+    "id": 1296,
+    "name": "Sega Technical Institute"
+   }
+  }
+ },
+ "pages": {
+  "previous": null,
+  "current": "https://api.thegamesdb.net/v1/...&page=1",
+  "next": null
+ }
+}

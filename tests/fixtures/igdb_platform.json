@@ -1,0 +1,28 @@
+[
+ {
+  "id": 29,
+  "name": "Sega Mega Drive/Genesis",
+  "alternative_name": "Sega Genesis",
+  "abbreviation": "Genesis",
+  "summary": "The Sega Mega Drive is a 16-bit home video game console.",
+  "generation": 4,
+  "platform_logo": {
+   "id": 1,
+   "image_id": "pl2z"
+  },
+  "versions": [
+   {
+    "id": 1,
+    "companies": [
+     {
+      "id": 1,
+      "company": {
+       "id": 11,
+       "name": "Sega"
+      }
+     }
+    ]
+   }
+  ]
+ }
+]

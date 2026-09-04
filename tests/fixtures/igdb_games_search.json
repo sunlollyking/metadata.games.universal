@@ -1,0 +1,33 @@
+[
+ {
+  "id": 1234,
+  "name": "Sonic the Hedgehog 2",
+  "first_release_date": 722304000,
+  "platforms": [
+   29,
+   64
+  ],
+  "game_type": 0,
+  "category": 0
+ },
+ {
+  "id": 5678,
+  "name": "Sonic the Hedgehog 2: Special Edition",
+  "first_release_date": 1386806400,
+  "platforms": [
+   29
+  ],
+  "game_type": 0,
+  "category": 0
+ },
+ {
+  "id": 9999,
+  "name": "Sonic the Hedgehog 2",
+  "first_release_date": 1181520000,
+  "platforms": [
+   29
+  ],
+  "game_type": 11,
+  "category": 11
+ }
+]

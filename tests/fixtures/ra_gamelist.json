@@ -1,0 +1,63 @@
+[
+ {
+  "ID": 1,
+  "Title": "Sonic the Hedgehog",
+  "ConsoleID": 1,
+  "ConsoleName": "Genesis/Mega Drive",
+  "ImageIcon": "/Images/085573.png",
+  "NumAchievements": 24,
+  "NumLeaderboards": 5,
+  "Points": 250,
+  "DateModified": "2024-01-11 04:16:42",
+  "ForumTopicID": 1,
+  "Hashes": [
+   "1bc674be034e43c96b86487ac69d9293"
+  ]
+ },
+ {
+  "ID": 3,
+  "Title": "Sonic the Hedgehog 2",
+  "ConsoleID": 1,
+  "ConsoleName": "Genesis/Mega Drive",
+  "ImageIcon": "/Images/085574.png",
+  "NumAchievements": 3,
+  "NumLeaderboards": 0,
+  "Points": 40,
+  "DateModified": "2024-03-02 10:00:00",
+  "ForumTopicID": 3,
+  "Hashes": [
+   "9feeb724052c39982d432a7851c98d3e",
+   "8e2c29a1e65111fe2078359e685e7943"
+  ]
+ },
+ {
+  "ID": 11467,
+  "Title": "~Hack~ Sonic the Hedgehog 2: Extended",
+  "ConsoleID": 1,
+  "ConsoleName": "Genesis/Mega Drive",
+  "ImageIcon": "/Images/000001.png",
+  "NumAchievements": 10,
+  "NumLeaderboards": 0,
+  "Points": 80,
+  "DateModified": "2023-06-06 06:06:06",
+  "ForumTopicID": 4,
+  "Hashes": [
+   "ffffffffffffffffffffffffffffffff"
+  ]
+ },
+ {
+  "ID": 44,
+  "Title": "Streets of Rage",
+  "ConsoleID": 1,
+  "ConsoleName": "Genesis/Mega Drive",
+  "ImageIcon": "/Images/010101.png",
+  "NumAchievements": 0,
+  "NumLeaderboards": 0,
+  "Points": 0,
+  "DateModified": null,
+  "ForumTopicID": null,
+  "Hashes": [
+   "0123456789abcdef0123456789abcdef"
+  ]
+ }
+]

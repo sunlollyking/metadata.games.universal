@@ -1,0 +1,94 @@
+{
+ "code": 200,
+ "status": "Success",
+ "remaining_monthly_allowance": 249,
+ "extra_allowance": 0,
+ "allowance_refresh_timer": 2592000,
+ "data": {
+  "count": 3,
+  "games": [
+   {
+    "id": 53,
+    "game_title": "Sonic the Hedgehog",
+    "release_date": "1991-06-23",
+    "platform": 18,
+    "players": 1,
+    "overview": "Join Sonic as he races through six zones.",
+    "rating": "E - Everyone",
+    "coop": "No",
+    "youtube": "",
+    "developers": [
+     1296
+    ],
+    "genres": [
+     1
+    ],
+    "publishers": [
+     1
+    ],
+    "alternates": null
+   },
+   {
+    "id": 432,
+    "game_title": "Sonic the Hedgehog 2",
+    "release_date": "1992-11-24",
+    "platform": 18,
+    "players": 2,
+    "overview": "Sonic returns with his new friend Tails to stop Dr. Robotnik.",
+    "last_updated": "2022-03-15 10:22:45",
+    "rating": "E - Everyone",
+    "coop": "Yes",
+    "youtube": "abc123xyz",
+    "developers": [
+     1296
+    ],
+    "genres": [
+     1
+    ],
+    "publishers": [
+     1
+    ],
+    "alternates": [
+     "Sonic 2"
+    ]
+   },
+   {
+    "id": 800,
+    "game_title": "Sonic the Hedgehog 2 (Beta)",
+    "release_date": "1992-09-14",
+    "platform": 18,
+    "players": 1,
+    "overview": "",
+    "rating": "Not Rated",
+    "coop": "No",
+    "youtube": null,
+    "developers": [
+     1296
+    ],
+    "genres": [
+     1
+    ],
+    "publishers": [
+     1
+    ],
+    "alternates": null
+   }
+  ]
+ },
+ "include": {
+  "platform": {
+   "data": {
+    "18": {
+     "id": 18,
+     "name": "Sega Genesis",
+     "alias": "sega-genesis"
+    }
+   }
+  }
+ },
+ "pages": {
+  "previous": null,
+  "current": "https://api.thegamesdb.net/v1/...&page=1",
+  "next": null
+ }
+}

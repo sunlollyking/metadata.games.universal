@@ -1,0 +1,25 @@
+{
+ "code": 200,
+ "status": "Success",
+ "remaining_monthly_allowance": 249,
+ "extra_allowance": 0,
+ "allowance_refresh_timer": 2592000,
+ "data": {
+  "count": 2,
+  "publishers": {
+   "1": {
+    "id": 1,
+    "name": "Sega"
+   },
+   "2374": {
+    "id": 2374,
+    "name": ".GEARS Studios"
+   }
+  }
+ },
+ "pages": {
+  "previous": null,
+  "current": "https://api.thegamesdb.net/v1/...&page=1",
+  "next": null
+ }
+}

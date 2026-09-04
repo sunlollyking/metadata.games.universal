@@ -1,0 +1,45 @@
+{
+ "code": 200,
+ "status": "Success",
+ "remaining_monthly_allowance": 249,
+ "extra_allowance": 0,
+ "allowance_refresh_timer": 2592000,
+ "data": {
+  "count": 4,
+  "platforms": {
+   "18": {
+    "id": 18,
+    "name": "Sega Genesis",
+    "alias": "sega-genesis",
+    "manufacturer": "Sega",
+    "overview": "The Sega Genesis, known as the Mega Drive outside North America."
+   },
+   "36": {
+    "id": 36,
+    "name": "Sega Mega Drive",
+    "alias": "sega-mega-drive",
+    "manufacturer": "Sega",
+    "overview": null
+   },
+   "7": {
+    "id": 7,
+    "name": "Nintendo Entertainment System (NES)",
+    "alias": "nintendo-entertainment-system-nes",
+    "manufacturer": "Nintendo",
+    "overview": null
+   },
+   "6": {
+    "id": 6,
+    "name": "Super Nintendo (SNES)",
+    "alias": "super-nintendo-snes",
+    "manufacturer": "Nintendo",
+    "overview": null
+   }
+  }
+ },
+ "pages": {
+  "previous": null,
+  "current": "https://api.thegamesdb.net/v1/...&page=1",
+  "next": null
+ }
+}

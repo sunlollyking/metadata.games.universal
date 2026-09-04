@@ -1,0 +1,52 @@
+{
+ "code": 200,
+ "status": "Success",
+ "remaining_monthly_allowance": 249,
+ "extra_allowance": 0,
+ "allowance_refresh_timer": 2592000,
+ "data": {
+  "count": 1,
+  "games": [
+   {
+    "id": 432,
+    "game_title": "Sonic the Hedgehog 2",
+    "release_date": "1992-11-24",
+    "platform": 18,
+    "players": 2,
+    "overview": "Sonic returns with his new friend Tails to stop Dr. Robotnik.",
+    "last_updated": "2022-03-15 10:22:45",
+    "rating": "E - Everyone",
+    "coop": "Yes",
+    "youtube": "abc123xyz",
+    "developers": [
+     1296
+    ],
+    "genres": [
+     1
+    ],
+    "publishers": [
+     1
+    ],
+    "alternates": [
+     "Sonic 2"
+    ]
+   }
+  ]
+ },
+ "include": {
+  "platform": {
+   "data": {
+    "18": {
+     "id": 18,
+     "name": "Sega Genesis",
+     "alias": "sega-genesis"
+    }
+   }
+  }
+ },
+ "pages": {
+  "previous": null,
+  "current": "https://api.thegamesdb.net/v1/...&page=1",
+  "next": null
+ }
+}

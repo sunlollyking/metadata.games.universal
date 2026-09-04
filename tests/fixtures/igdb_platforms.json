@@ -1,0 +1,36 @@
+[
+ {
+  "id": 29,
+  "name": "Sega Mega Drive/Genesis",
+  "alternative_name": "Sega Genesis",
+  "abbreviation": "Genesis",
+  "slug": "genesis-slash-megadrive"
+ },
+ {
+  "id": 18,
+  "name": "Nintendo Entertainment System",
+  "alternative_name": "NES, Famicom, Family Computer",
+  "abbreviation": "NES",
+  "slug": "nes"
+ },
+ {
+  "id": 19,
+  "name": "Super Nintendo Entertainment System",
+  "alternative_name": "SNES, Super Famicom",
+  "abbreviation": "SNES",
+  "slug": "snes"
+ },
+ {
+  "id": 86,
+  "name": "Turbografx-16/PC Engine",
+  "alternative_name": "TG-16, PCE",
+  "abbreviation": "TG-16",
+  "slug": "turbografx16--1"
+ },
+ {
+  "id": 6,
+  "name": "PC (Microsoft Windows)",
+  "abbreviation": "PC",
+  "slug": "win"
+ }
+]

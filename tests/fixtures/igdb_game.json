@@ -1,0 +1,132 @@
+[
+ {
+  "id": 1234,
+  "name": "Sonic the Hedgehog 2",
+  "summary": "Sonic and his new sidekick Tails race through Emerald Hill and beyond.",
+  "storyline": "Dr. Robotnik is building the Death Egg.",
+  "first_release_date": 722304000,
+  "total_rating": 87.4321,
+  "total_rating_count": 250,
+  "involved_companies": [
+   {
+    "id": 1,
+    "company": {
+     "id": 10,
+     "name": "Sega Technical Institute"
+    },
+    "developer": true,
+    "publisher": false
+   },
+   {
+    "id": 2,
+    "company": {
+     "id": 11,
+     "name": "Sega"
+    },
+    "developer": false,
+    "publisher": true
+   }
+  ],
+  "genres": [
+   {
+    "id": 8,
+    "name": "Platform"
+   }
+  ],
+  "themes": [
+   {
+    "id": 1,
+    "name": "Action"
+   }
+  ],
+  "franchises": [
+   {
+    "id": 1,
+    "name": "Sonic the Hedgehog"
+   }
+  ],
+  "collections": [
+   {
+    "id": 2,
+    "name": "Sonic the Hedgehog"
+   },
+   {
+    "id": 3,
+    "name": "Sega Classics"
+   }
+  ],
+  "game_modes": [
+   {
+    "id": 1,
+    "name": "Single player"
+   },
+   {
+    "id": 2,
+    "name": "Multiplayer"
+   }
+  ],
+  "multiplayer_modes": [
+   {
+    "id": 5,
+    "offlinemax": 2,
+    "offlinecoop": true,
+    "platform": 29
+   }
+  ],
+  "cover": {
+   "id": 1,
+   "image_id": "co2abc"
+  },
+  "screenshots": [
+   {
+    "id": 1,
+    "image_id": "sc1"
+   },
+   {
+    "id": 2,
+    "image_id": "sc2"
+   }
+  ],
+  "artworks": [
+   {
+    "id": 1,
+    "image_id": "ar1"
+   }
+  ],
+  "age_ratings": [
+   {
+    "id": 1,
+    "rating_category": 8,
+    "organization": 1
+   },
+   {
+    "id": 2,
+    "rating_category": 1,
+    "organization": 2
+   }
+  ],
+  "release_dates": [
+   {
+    "id": 1,
+    "date": 722563200,
+    "platform": 29,
+    "region": 2,
+    "date_format": 0
+   },
+   {
+    "id": 2,
+    "date": 722304000,
+    "platform": 29,
+    "region": 5,
+    "date_format": 0
+   },
+   {
+    "id": 3,
+    "date": 1181520000,
+    "platform": 5,
+    "region": 8,
+    "date_format": 0
+   }
+  ]
+ }
+]
