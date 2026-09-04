@@ -17,6 +17,15 @@ from .. import namer
 
 Log = Callable[[str, bool], None]
 HASH_PARAMS = ("crc32", "md5", "sha1")
+
+#: A picture of the medium is a disc for these dumps and a cartridge, tape or
+#: card for everything else. The file says it: a platform is no guide, since
+#: the PC Engine, the Mega Drive and the Neo Geo all sold both.
+DISC_EXTENSIONS = frozenset((
+    "cue", "chd", "iso", "cdi", "gdi", "bin", "img", "ccd", "mds", "nrg", "pbp",
+    "m3u", "toc", "gcm", "rvz", "wbfs", "wia", "cso", "dol",
+))
+
 _platform_key_rx = re.compile(r"[^a-z0-9]+")
 
 
@@ -90,6 +99,13 @@ def platform_names(request: Request) -> List[str]:
     names.append(request.platform_id("esde"))
     names.append(request.get("platform"))
     return list(dict.fromkeys(n for n in names if n))
+
+
+def medium_art_type(request: "Request") -> str:
+    """What a picture of the game's own medium should be called."""
+    name = request.get("filename") or request.get("path")
+    _, _, extension = name.rpartition(".")
+    return "disc" if extension.lower() in DISC_EXTENSIONS else "cartridge"
 
 
 def platform_key(name: str) -> str:

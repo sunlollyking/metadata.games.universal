@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import namer
 from .. import net
-from . import OnlineProvider, Request
+from . import OnlineProvider, Request, medium_art_type
 
 BASE_URL = "https://api.screenscraper.fr/api2/"
 GAME_INFO = "jeuInfos.php"
@@ -48,13 +48,21 @@ SS_REGION_NAMES = {
     "sw": "Scandinavia", "tw": "Taiwan", "uk": "United Kingdom", "ar": "Argentina",
 }
 SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() if code != "ss"}
+#: Everything the service offers a game, and what the library calls it. The
+#: "support" pictures are of the medium itself and are named by the dump; see
+#: MEDIUM_ART below.
 ART = {
     "box-2D": "boxfront", "box-2D-back": "boxback", "box-2D-side": "boxspine", "box-texture": "boxfull",
-    "box-3D": "box3d", "support-2D": "cartridge", "wheel": "clearlogo", "wheel-hd": "clearlogo",
-    "screenmarquee": "marquee", "marquee": "marquee", "ss": "screenshot", "sstitle": "titlescreen",
-    "fanart": "fanart", "mixrbv2": "mix", "flyer": "flyer", "maps": "map", "bezel-16-9": "bezel",
+    "box-3D": "box3d", "wheel": "clearlogo", "wheel-hd": "clearlogo", "wheel-carbon": "clearlogo",
+    "wheel-steel": "clearlogo", "screenmarquee": "marquee", "screenmarqueesmall": "marquee",
+    "marquee": "marquee", "ss": "screenshot", "sstitle": "titlescreen", "fanart": "fanart",
+    "mixrbv1": "mix", "mixrbv2": "mix", "flyer": "flyer", "maps": "map", "bezel-16-9": "bezel",
+    "steamgrid": "banner",
 }
-ART_STRINGS = {"video": "trailer", "manuel": "manual"}
+
+#: Pictures of the medium: the flat scan, its texture and the rendered one
+MEDIUM_ART = ("support-2D", "support-texture", "support-3D")
+ART_STRINGS = {"video": "trailer", "video-normalized": "trailer", "manuel": "manual"}
 SYSTEM_ART = {"logo-monochrome": "logo", "wheel": "clearlogo", "photo": "photo", "illustration": "fanart",
               "controller": "controller", "icon": "icon"}
 ROM_FLAGS = (("beta", "beta"), ("proto", "proto"), ("demo", "demo"))
@@ -335,6 +343,7 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
     prefs = preference(request, NAME_REGIONS)
     art_prefs = preference(request, ART_REGIONS)
     medias = jeu.findall("medias/media")
+    art_map = dict(ART, **{name: medium_art_type(request) for name in MEDIUM_ART})
     out: Dict[str, Any] = {
         "version": 1,
         "title": game_name(jeu, prefs),
@@ -348,7 +357,7 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
         "ageratings": age_ratings(jeu),
         "uniqueids": {"screenscraper": jeu.get("id")},
         "releases": [r for r in (release(rom) for rom in jeu.findall("roms/rom")) if r],
-        "art": media(medias, ART, art_prefs),
+        "art": media(medias, art_map, art_prefs),
     }
     date = release_date(jeu, prefs)
     if date:
