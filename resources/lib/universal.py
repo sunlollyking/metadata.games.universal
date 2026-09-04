@@ -177,6 +177,20 @@ class Universal:
                 merge(info, extra, PLATFORM_FIELDS)
         return info
 
+    def progress(self, request: Request) -> Dict[str, Dict[str, int]]:
+        """How far the signed-in person has got, from whichever source keeps it.
+
+        Only RetroAchievements does today, so the first answer stands rather
+        than being merged with anything.
+        """
+        for provider in self.ordered(request.settings):
+            if not hasattr(provider, "progress"):
+                continue
+            answer = self._ask(provider, "progress", request)
+            if answer:
+                return answer
+        return {}
+
     def _has_budget(self, provider: Provider, settings: Dict[str, Any]) -> bool:
         limit = provider.budget_limit(settings)
         if limit <= 0:

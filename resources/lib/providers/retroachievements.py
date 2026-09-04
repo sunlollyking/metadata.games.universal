@@ -8,6 +8,10 @@ user's web API key as ``y`` (settings ra_username, ra_api_key).
   platformids. The list is cached per console and refreshed by age.
 * ``API_GetGameExtended.php?i=<game id>`` adds publisher, developer, genre,
   release date, art and the achievement set.
+* ``API_GetUserCompletionProgress.php`` lists every game the signed-in person
+  has played, with how many of its achievements they have earned. That is
+  about the person rather than about the game, so it is asked for on its own
+  and not during a scan.
 
 Identification uses the ``rahash`` query parameter. Without it the file's
 MD5 stands in, but only on the consoles in MD5_CONSOLES, whose
@@ -30,6 +34,11 @@ from . import OnlineProvider, Request
 BASE_URL = "https://retroachievements.org/API/"
 GAME_LIST = "API_GetGameList.php"
 GAME_EXTENDED = "API_GetGameExtended.php"
+USER_PROGRESS = "API_GetUserCompletionProgress.php"
+#: The most the service returns in one answer
+PROGRESS_PAGE = 500
+#: A person with more played games than this is not worth another round trip
+PROGRESS_LIMIT = 10000
 MEDIA_URL = "https://media.retroachievements.org/"
 MIN_INTERVAL = 0.25
 PLACEHOLDERS = ("/Images/000001.png", "/Images/000002.png")
@@ -41,6 +50,14 @@ MD5_CONSOLES = frozenset((
 ART = (("boxfront", "ImageBoxArt"), ("titlescreen", "ImageTitle"), ("screenshot", "ImageIngame"),
        ("icon", "ImageIcon"))
 GENRE_SPLIT = re.compile(r"\s*/\s*|,\s*")
+
+
+def int_or(value: Any, fallback: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
 DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
 
 
@@ -48,6 +65,44 @@ class RetroAchievementsProvider(OnlineProvider):
     name = "retroachievements"
     folder = "ra"
     required_settings = ("ra_username", "ra_api_key")
+
+    def progress(self, request: Request) -> Dict[str, Dict[str, int]]:
+        """How far the signed-in person has got with every game they have played.
+
+        Keyed by RetroAchievements game id. ``hardcore`` counts only the ones
+        earned with savestates and rewind turned off, which is the number the
+        site puts on a profile.
+        """
+        user = str(request.settings.get("ra_username") or "").strip()
+        if not user:
+            return {}
+
+        out: Dict[str, Dict[str, int]] = {}
+        offset = 0
+        while offset < PROGRESS_LIMIT:
+            try:
+                answer = self._call(USER_PROGRESS, {"u": user, "c": PROGRESS_PAGE, "o": offset},
+                                    request)
+            except net.Error as err:
+                self.log("achievement progress failed: {}".format(err), True)
+                break
+            results = (answer or {}).get("Results")
+            if not isinstance(results, list) or not results:
+                break
+            for row in results:
+                if not isinstance(row, dict):
+                    continue
+                game_id = str(row.get("GameID") or "")
+                total = int_or(row.get("MaxPossible"))
+                if not game_id or total <= 0:
+                    continue
+                out[game_id] = {"total": total,
+                                "earned": int_or(row.get("NumAwarded")),
+                                "hardcore": int_or(row.get("NumAwardedHardcore"))}
+            if len(results) < PROGRESS_PAGE:
+                break
+            offset += PROGRESS_PAGE
+        return out
 
     def find(self, request: Request) -> List[dict]:
         console = request.platform_id(self.name)

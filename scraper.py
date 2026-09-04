@@ -218,8 +218,20 @@ def getplatform(handle: int, query: Dict[str, str]) -> None:
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 
+def getprogress(handle: int, query: Dict[str, str]) -> None:
+    """How far the signed-in person has got with the games they have played.
+
+    About the person rather than about a game, so it is asked for on its own
+    and answers for the whole library at once.
+    """
+    progress = scraper().progress(request(query))
+    item = xbmcgui.ListItem("progress")
+    item.setProperty("gamelibrary.progress", json.dumps(progress))
+    xbmcplugin.setResolvedUrl(handle, True, item)
+
+
 ACTIONS = {"find": find, "findmany": findmany, "getdetails": getdetails,
-           "getplatform": getplatform}
+           "getplatform": getplatform, "getprogress": getprogress}
 
 
 def main(argv) -> None:
@@ -236,7 +248,7 @@ def main(argv) -> None:
     except Exception:
         log("{} failed: {}".format(action or "request", traceback.format_exc()), True)
         if handle >= 0:
-            if action in ("getdetails", "getplatform"):
+            if action in ("getdetails", "getplatform", "getprogress"):
                 xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
             else:
                 xbmcplugin.endOfDirectory(handle, succeeded=False)
