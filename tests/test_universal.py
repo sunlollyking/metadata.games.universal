@@ -147,7 +147,9 @@ class DetailsTest(unittest.TestCase):
         self.assertEqual(details["releasedate"], "1999-01-01")
         self.assertEqual(details["ratings"], {"b": {"rating": 7.0, "max": 10, "votes": 3}})
         self.assertEqual(details["uniqueids"], {"a": "1", "b": "2"})
-        self.assertEqual(details["art"], {"boxfront": [{"url": "a-box"}], "screenshot": [{"url": "b-shot"}],
+        # Pictures add up: the second source's box joins the first one's
+        self.assertEqual(details["art"], {"boxfront": [{"url": "a-box"}, {"url": "b-box"}],
+                                          "screenshot": [{"url": "b-shot"}],
                                           "fanart": [{"url": "b-fanart"}]})
         self.assertEqual(b.calls, ["find", "details:2"])
 
@@ -209,7 +211,8 @@ class PlatformTest(unittest.TestCase):
         info = universal.Universal([a, b], no_log).platform(request("a,b"))
         self.assertEqual(info, {"version": 1, "name": "Mega Drive", "manufacturer": "Sega", "released": 1988,
                                 "overview": "16-bit",
-                                "art": {"clearlogo": [{"url": "a-logo"}], "fanart": [{"url": "b-fanart"}]}})
+                                "art": {"clearlogo": [{"url": "a-logo"}, {"url": "b-logo"}],
+                                        "fanart": [{"url": "b-fanart"}]}})
         self.assertEqual(universal.Universal([a, b], no_log).platform(request("b,a"))["name"], "Genesis")
 
     def test_platform_unknown_everywhere(self):

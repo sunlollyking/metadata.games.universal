@@ -27,6 +27,14 @@ ASSET_BASE_URL = "https://api.regvault.org"
 
 USER_AGENT = "kodi-metadata.games.universal/1.0 (+https://kodi.tv)"
 
+#: Every kind of picture the catalogue holds, and what the library calls it.
+#: "wheel" is the logo cut out on a transparent background that front ends put
+#: on a shelf; "bezel" is the surround an emulator draws around the screen.
+ASSET_TYPES = (("box_front", "boxfront"), ("box_back", "boxback"), ("cartridge", "cartridge"),
+               ("disc", "disc"), ("clearlogo", "clearlogo"), ("wheel", "wheel"),
+               ("bezel", "bezel"), ("fanart", "fanart"), ("screenshots", "screenshot"),
+               ("titlescreen", "titlescreen"))
+
 #: The service documents a hundred requests a minute; one a second stays well
 #: under it and does not look like a scrape
 MIN_SECONDS_BETWEEN_REQUESTS = 1.0
@@ -152,10 +160,14 @@ class RegVaultProvider(Provider):
         assets = dict(entry.get("assets") or {})
         assets.update({k: v for k, v in (described.get("assets") or {}).items() if v})
         art: Dict[str, List[Dict[str, str]]] = {}
-        if assets.get("box_front"):
-            art["boxfront"] = [{"url": ASSET_BASE_URL + assets["box_front"]}]
-        if assets.get("fanart"):
-            art["fanart"] = [{"url": ASSET_BASE_URL + assets["fanart"]}]
+        for key, art_type in ASSET_TYPES:
+            value = assets.get(key)
+            if not value:
+                continue
+            paths = value if isinstance(value, list) else [value]
+            urls = [{"url": ASSET_BASE_URL + p} for p in paths if isinstance(p, str) and p]
+            if urls:
+                art[art_type] = urls
         if art:
             out["art"] = art
 

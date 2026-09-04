@@ -41,9 +41,18 @@ def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) ->
     for source, uid in (extra.get("uniqueids") or {}).items():
         if uid and not (base.get("uniqueids") or {}).get(source):
             base.setdefault("uniqueids", {})[source] = uid
+    # Pictures add up rather than replace: a game keeps the box the first
+    # source gave and the screenshots the second one has as well
     for art_type, entries in (extra.get("art") or {}).items():
-        if entries and not (base.get("art") or {}).get(art_type):
-            base.setdefault("art", {})[art_type] = entries
+        if not entries:
+            continue
+        held = base.setdefault("art", {}).setdefault(art_type, [])
+        seen = {e.get("url") for e in held if isinstance(e, dict)}
+        for entry in entries:
+            url = entry.get("url") if isinstance(entry, dict) else None
+            if url and url not in seen:
+                held.append(entry)
+                seen.add(url)
 
 
 def provider_order(settings: Dict[str, Any]) -> List[str]:

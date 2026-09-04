@@ -50,7 +50,7 @@ SS_REGION_NAMES = {
 SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() if code != "ss"}
 ART = {
     "box-2D": "boxfront", "box-2D-back": "boxback", "box-2D-side": "boxspine", "box-texture": "boxfull",
-    "box-3D": "box3d", "support-2D": "cart", "wheel": "clearlogo", "wheel-hd": "clearlogo",
+    "box-3D": "box3d", "support-2D": "cartridge", "wheel": "clearlogo", "wheel-hd": "clearlogo",
     "screenmarquee": "marquee", "marquee": "marquee", "ss": "screenshot", "sstitle": "titlescreen",
     "fanart": "fanart", "mixrbv2": "mix", "flyer": "flyer", "maps": "map", "bezel-16-9": "bezel",
 }
