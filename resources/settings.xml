@@ -5,7 +5,7 @@
       <group id="1">
         <setting id="provider_order" type="string" label="30005" help="30006">
           <level>0</level>
-          <default>libretro,retroachievements,igdb,screenscraper,thegamesdb,regvault</default>
+          <default>libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault</default>
           <control type="edit" format="string"/>
         </setting>
         <setting id="download" type="boolean" label="30001" help="30002">

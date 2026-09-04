@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
-    igdb, libretro, regvault, retroachievements, screenscraper, thegamesdb)
+    igdb, libretro, regvault, retroachievements, screenscraper, thegamesdb, wikidata)
 
 #: How long a batch may spend on the web before it finishes offline
 BATCH_SECONDS = 90
@@ -26,7 +26,7 @@ BATCH_SECONDS = 90
 ADDON_ID = "metadata.games.universal"
 CACHE_DIR_ENV = "METADATA_GAMES_LIBRETRO_CACHE_DIR"
 DEFAULTS: Dict[str, Any] = {
-    "provider_order": "libretro,retroachievements,igdb,screenscraper,thegamesdb,regvault",
+    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault",
     "cache_days": 30,
     "download": True,
     "ra_username": "",
@@ -99,6 +99,7 @@ def scraper() -> universal.Universal:
             igdb.IgdbProvider(log, cache_dir),
             thegamesdb.TheGamesDbProvider(log, cache_dir),
             regvault.RegVaultProvider(log),
+            wikidata.WikidataProvider(log, cache_dir),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir

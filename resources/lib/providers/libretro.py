@@ -24,6 +24,11 @@ THUMB_INDEX_URL = "https://api.github.com/repos/libretro-thumbnails/{}/git/trees
 THUMB_URL = "https://raw.githubusercontent.com/libretro-thumbnails/{}/master/{}/{}.png"
 ART_FOLDERS = (("boxfront", "Named_Boxarts"), ("titlescreen", "Named_Titles"), ("screenshot", "Named_Snaps"))
 THUMB_UNSAFE = str.maketrans({c: "_" for c in '&*/:`<>?\\|"'})
+#: RetroArch ships an icon for every machine it runs, named exactly as the
+#: catalogues are, which is the one picture of a system available without a key
+SYSTEM_ICON_INDEX_URL = "https://api.github.com/repos/libretro/retroarch-assets/git/trees/master?recursive=1"
+SYSTEM_ICON_URL = "https://raw.githubusercontent.com/libretro/retroarch-assets/master/{}/{}.png"
+SYSTEM_ICON_FOLDERS = ("xmb/monochrome/png", "xmb/flatui/png")
 GENRE_SPLIT = re.compile(r"\s*/\s*|,\s*")
 NOT_SERIAL = re.compile(r"[^A-Z0-9]")
 AGE_BOARDS = (("esrb_rating", "ESRB"), ("elspa_rating", "ELSPA"), ("pegi_rating", "PEGI"),
@@ -311,6 +316,7 @@ class Store:
         self.log = log
         self.catalogues: Dict[str, Optional[Catalogue]] = {}
         self.thumbnail_index: Dict[str, Optional[Dict[str, set]]] = {}
+        self.system_icon_index: Optional[Dict[str, set]] = None
 
     def catalogue(self, platform_name: str) -> Optional[Catalogue]:
         if platform_name not in self.catalogues:
@@ -360,6 +366,67 @@ class Store:
         if not isinstance(held, dict) or not held:
             return None
         return {folder: set(names) for folder, names in held.items()}
+
+    def system_icons(self, platform_name: str) -> List[Dict[str, str]]:
+        """The machine's own icons, in the order the asset sets are preferred."""
+        held = self._system_icon_index()
+        if held is None:
+            return []
+        return [{"url": SYSTEM_ICON_URL.format(folder, urllib.parse.quote(platform_name))}
+                for folder in SYSTEM_ICON_FOLDERS if platform_name in held.get(folder, ())]
+
+    def _system_icon_index(self) -> Optional[Dict[str, set]]:
+        """What the asset repository holds, so no URL is offered that answers 404."""
+        if self.system_icon_index is not None:
+            return self.system_icon_index
+
+        path = os.path.join(self.cache_dir, "system-icons.json")
+        fresh = os.path.isfile(path) and time.time() - os.path.getmtime(path) < self.cache_days * 86400
+        if not fresh and self.download:
+            try:
+                self._write_system_icons(path)
+            except Exception as err:
+                self.log("the system icon list failed: {}".format(err), False)
+
+        held: Dict[str, set] = {}
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                stored = json.load(handle)
+            if isinstance(stored, dict):
+                held = {folder: set(names) for folder, names in stored.items()}
+        except Exception:
+            pass
+
+        self.system_icon_index = held
+        return held
+
+    def _write_system_icons(self, path: str) -> None:
+        request = urllib.request.Request(SYSTEM_ICON_INDEX_URL,
+                                         headers={"User-Agent": USER_AGENT,
+                                                  "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            tree = json.loads(response.read().decode("utf-8"))
+        if tree.get("truncated"):
+            self.log("the system icon list is truncated; not using it", False)
+            return
+
+        wanted = set(SYSTEM_ICON_FOLDERS)
+        held: Dict[str, List[str]] = {folder: [] for folder in wanted}
+        for entry in tree.get("tree", []):
+            entry_path = entry.get("path", "")
+            if not entry_path.endswith(".png"):
+                continue
+            folder, _, filename = entry_path.rpartition("/")
+            if folder in wanted and filename:
+                held[folder].append(filename[:-4])
+
+        if not any(held.values()):
+            return
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        partial = path + ".part"
+        with open(partial, "w", encoding="utf-8") as out:
+            json.dump(held, out)
+        os.replace(partial, path)
 
     def _write_thumbnails(self, platform_name: str, path: str) -> None:
         repo = platform_name.replace(" ", "_")
@@ -478,4 +545,10 @@ class LibretroProvider(Provider):
 
     def platform(self, request: Request) -> Optional[Dict[str, Any]]:
         name = request.platform_id(self.name)
-        return platform_info(name) if name else None
+        if not name:
+            return None
+        info = platform_info(name)
+        icons = self.store.system_icons(name)
+        if icons:
+            info["art"] = {"icon": icons}
+        return info

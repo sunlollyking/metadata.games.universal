@@ -33,10 +33,14 @@ GAMES_BY_NAME = "v1.1/Games/ByGameName"
 GAMES_BY_ID = "v1/Games/ByGameID"
 GAME_IMAGES = "v1/Games/Images"
 PLATFORMS = "v1/Platforms"
+PLATFORM_IMAGES = "v1/Platforms/Images"
 LOOKUPS = {"genres": "v1/Genres", "developers": "v1/Developers", "publishers": "v1/Publishers"}
 FIELDS = "players,publishers,genres,overview,rating,coop,youtube,alternates"
 IMAGE_TYPES = "boxart,fanart,banner,screenshot,clearlogo,titlescreen"
 PLATFORM_FIELDS = "manufacturer,overview"
+#: A machine's pictures: its own boxart is a photograph of the hardware
+PLATFORM_ART = {"boxart": "photo", "fanart": "fanart", "banner": "banner",
+                "clearlogo": "clearlogo", "icon": "icon"}
 ART = {"fanart": "fanart", "banner": "banner", "screenshot": "screenshot", "clearlogo": "clearlogo",
        "titlescreen": "titlescreen"}
 BOXART = {"front": "boxfront", "back": "boxback"}
@@ -101,8 +105,23 @@ class TheGamesDbProvider(OnlineProvider):
                     out["manufacturer"] = str(manufacturer)
                 if row.get("overview"):
                     out["overview"] = str(row["overview"])
+                pictures = self._platform_art(platform_id, request)
+                if pictures:
+                    out["art"] = pictures
                 return out
         return None
+
+    def _platform_art(self, platform_id: str, request: Request) -> Dict[str, List[Dict[str, str]]]:
+        """The machine's own pictures, cached for as long as its description."""
+        key = "platform-images-{}".format(platform_id)
+        images = self.cache.load(key, request.cache_days())
+        if images is None:
+            images = self._get(PLATFORM_IMAGES, {"platforms_id": platform_id}, request)
+            if images is None:
+                return {}
+            images = images.get("data") if isinstance(images.get("data"), dict) else {}
+            self.cache.save(key, images)
+        return platform_art(images)
 
     def _platform_id(self, request: Request) -> str:
         platform_id = resolve_platform(self._platforms(request), platform_names(request))
@@ -226,6 +245,21 @@ def art(images: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
                 continue
             kind = image.get("type")
             art_type = BOXART.get(str(image.get("side") or "")) if kind == "boxart" else ART.get(str(kind))
+            if art_type:
+                out.setdefault(art_type, []).append({"url": base + str(image["filename"])})
+    return out
+
+
+def platform_art(images: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
+    """Pictures of a machine, keyed the way the library names them."""
+    base = ((images.get("base_url") or {}).get("original") or "") if isinstance(images.get("base_url"), dict) else ""
+    out: Dict[str, List[Dict[str, str]]] = {}
+    entries = images.get("images") or {}
+    for items in entries.values() if isinstance(entries, dict) else []:
+        for image in items if isinstance(items, list) else []:
+            if not isinstance(image, dict) or not image.get("filename"):
+                continue
+            art_type = PLATFORM_ART.get(str(image.get("type") or ""))
             if art_type:
                 out.setdefault(art_type, []).append({"url": base + str(image["filename"])})
     return out

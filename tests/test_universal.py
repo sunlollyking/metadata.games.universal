@@ -251,8 +251,8 @@ class StubProviderTest(unittest.TestCase):
     def test_provider_order_default_covers_every_stub(self):
         import scraper
         names = universal.provider_order({"provider_order": scraper.DEFAULTS["provider_order"]})
-        self.assertEqual(names, ["libretro", "retroachievements", "igdb", "screenscraper", "thegamesdb",
-                                 "regvault"])
+        self.assertEqual(names, ["libretro", "retroachievements", "wikidata", "igdb", "screenscraper",
+                                 "thegamesdb", "regvault"])
         for cls, _, _ in self.STUBS:
             self.assertIn(cls(no_log).name, names)
 

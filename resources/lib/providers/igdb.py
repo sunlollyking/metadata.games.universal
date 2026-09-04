@@ -32,6 +32,8 @@ from . import OnlineProvider, Request, platform_key, platform_keys, platform_nam
 BASE_URL = "https://api.igdb.com/v4/"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 IMAGE_URL = "https://images.igdb.com/igdb/image/upload/t_{}/{}.jpg"
+#: A logo is cut out on a transparent background, which only the PNG keeps
+LOGO_URL = "https://images.igdb.com/igdb/image/upload/t_{}/{}.png"
 MIN_INTERVAL = 0.25
 #: How many titles one prefetch query asks about
 PREFETCH_CHUNK = 60
@@ -362,5 +364,5 @@ def platform_info(row: dict) -> Dict[str, Any]:
             break
     logo = row.get("platform_logo")
     if isinstance(logo, dict) and logo.get("image_id"):
-        out["art"] = {"clearlogo": [{"url": IMAGE_URL.format("logo_med", logo["image_id"])}]}
+        out["art"] = {"clearlogo": [{"url": LOGO_URL.format("logo_med", logo["image_id"])}]}
     return out
