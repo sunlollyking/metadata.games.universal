@@ -26,7 +26,7 @@ BATCH_SECONDS = 90
 ADDON_ID = "metadata.games.universal"
 CACHE_DIR_ENV = "METADATA_GAMES_LIBRETRO_CACHE_DIR"
 DEFAULTS: Dict[str, Any] = {
-    "provider_order": "libretro,retroachievements,screenscraper,igdb,thegamesdb",
+    "provider_order": "libretro,retroachievements,igdb,screenscraper,thegamesdb,regvault",
     "cache_days": 30,
     "download": True,
     "ra_username": "",
