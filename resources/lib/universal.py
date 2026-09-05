@@ -112,9 +112,12 @@ class Universal:
         self._unusable.add(provider.name)
         missing = [key for key in provider.required_settings if not settings.get(key)]
         if missing:
+            # Said loudly rather than at debug: a provider that cannot be used is
+            # indistinguishable from one that found nothing, and a whole library
+            # can be scanned against a fraction of the catalogues without a word
             self.log("{} is in the provider order but {} {} not set, so it is not "
                      "being asked".format(provider.name, ", ".join(missing),
-                                          "is" if len(missing) == 1 else "are"), False)
+                                          "is" if len(missing) == 1 else "are"), True)
 
     def stay_offline(self) -> None:
         """Answer the rest of this run from the offline catalogue alone.
