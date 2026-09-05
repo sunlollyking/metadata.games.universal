@@ -70,6 +70,7 @@ class Universal:
         self._budgets: Dict[str, Budget] = {}
         #: Sources that answered "no allowance left" during this run
         self._exhausted: set = set()
+        self._unusable: set = set()
         #: Set when a batch has spent its time; what is left is read offline
         self._offline = False
 
@@ -94,7 +95,26 @@ class Universal:
                          "games only".format(name), False)
             elif provider not in out and provider.available(settings):
                 out.append(provider)
+            elif not provider.available(settings):
+                self._say_once(provider, settings)
         return out
+
+    def _say_once(self, provider: Provider, settings: Dict[str, Any]) -> None:
+        """Name a provider that is configured but cannot be used, once per run.
+
+        A provider whose credentials are missing is simply skipped, which looks
+        from the outside exactly like a provider that answered nothing: a whole
+        library can be scanned against one catalogue without a word about the
+        other five.
+        """
+        if provider.name in self._unusable:
+            return
+        self._unusable.add(provider.name)
+        missing = [key for key in provider.required_settings if not settings.get(key)]
+        if missing:
+            self.log("{} is in the provider order but {} {} not set, so it is not "
+                     "being asked".format(provider.name, ", ".join(missing),
+                                          "is" if len(missing) == 1 else "are"), False)
 
     def stay_offline(self) -> None:
         """Answer the rest of this run from the offline catalogue alone.
