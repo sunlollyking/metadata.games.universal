@@ -3,7 +3,7 @@
 API v1, base https://api.thegamesdb.net/. Every call carries
 ``apikey=<public API key>`` (setting tgdb_api_key) and answers with
 ``remaining_monthly_allowance``; when that reaches zero the provider logs
-once and reports itself unavailable until Kodi restarts.
+once and reports itself unavailable for the rest of the month.
 
 * ``/v1/Games/ByGameHash?hash=<md5>&filter[type]=md5`` identifies a ROM by
   MD5; the CRC is tried next, but only on a resolved platform.
@@ -57,10 +57,6 @@ class TheGamesDbProvider(OnlineProvider):
     budget_setting = "tgdb_monthly_lookups"
     folder = "tgdb"
     required_settings = ("tgdb_api_key",)
-
-    def __init__(self, log, cache_dir: str = ""):
-        super().__init__(log, cache_dir)
-        self.exhausted = False
 
     def available(self, settings: Dict[str, Any]) -> bool:
         return super().available(settings) and not self.exhausted
@@ -175,10 +171,9 @@ class TheGamesDbProvider(OnlineProvider):
         except (net.Error, ValueError) as err:
             # Being told to stop is not a failure to retry around: every later
             # call would pay the same wait for the same answer
-            if getattr(err, "status", None) == 429 and not self.exhausted:
-                self.exhausted = True
-                self.log("TheGamesDB is turning requests away; not asking again "
-                         "until Kodi restarts", True)
+            if getattr(err, "status", None) == 429:
+                self.stop_asking("TheGamesDB is turning requests away; not asking "
+                                 "again for now")
             else:
                 self.log("{} failed: {}".format(endpoint, err), True)
             return None
@@ -186,9 +181,9 @@ class TheGamesDbProvider(OnlineProvider):
             return None
         remaining = answer.get("remaining_monthly_allowance")
         extra = answer.get("extra_allowance") if isinstance(answer.get("extra_allowance"), int) else 0
-        if isinstance(remaining, int) and remaining + extra <= 0 and not self.exhausted:
-            self.exhausted = True
-            self.log("TheGamesDB monthly allowance is used up; not asking again until Kodi restarts", True)
+        if isinstance(remaining, int) and remaining + extra <= 0:
+            self.stop_asking("TheGamesDB monthly allowance is used up; not asking again "
+                             "this month", self.ALLOWANCE_DAYS)
         return answer
 
 

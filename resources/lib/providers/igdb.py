@@ -161,10 +161,9 @@ class IgdbProvider(OnlineProvider):
             try:
                 rows = self._post(endpoint, "fields {}; {}".format(fields, body), request)
             except net.Error as err:
-                if getattr(err, "status", None) == 429 and not self.exhausted:
-                    self.exhausted = True
-                    self.log("{} is turning requests away; not asking again until "
-                             "Kodi restarts".format(self.name), True)
+                if getattr(err, "status", None) == 429:
+                    self.stop_asking("{} is turning requests away; not asking again "
+                                     "for now".format(self.name))
                 if err.status == 400 and index + 1 < len(field_variants):
                     continue
                 self.log("{} query failed: {}".format(endpoint, err), True)

@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .. import namer
 
 Log = Callable[[str, bool], None]
+_UNSET = object()
 HASH_PARAMS = ("crc32", "md5", "sha1")
 
 #: A picture of the medium is a disc for these dumps and a cartridge, tape or
@@ -222,6 +223,39 @@ class OnlineProvider(Provider):
 
     folder = ""
 
+    #: How long a refusal is honoured, in days. Kept short: a 429 is usually a
+    #: rate limit rather than a spent allowance, and the source is worth
+    #: another try later in a long scan.
+    REFUSAL_DAYS = 0.25
+    #: How long a spent monthly allowance is honoured. Until the month is out.
+    ALLOWANCE_DAYS = 31
+    #: Cache document holding the refusal
+    REFUSAL = "refused"
+
     def __init__(self, log: Log, cache_dir: str = ""):
         super().__init__(log)
         self.cache = Cache(os.path.join(cache_dir, self.folder) if cache_dir else "")
+        self._refusal: Any = _UNSET
+
+    @property
+    def exhausted(self) -> bool:
+        """Whether the source has asked not to be called for the time being."""
+        if self._refusal is _UNSET:
+            stored = self.cache.load(self.REFUSAL, self.ALLOWANCE_DAYS)
+            self._refusal = stored if (isinstance(stored, dict)
+                                       and stored.get("until", 0) > time.time()) else None
+        return self._refusal is not None
+
+    def stop_asking(self, message: str, days: Optional[float] = None) -> None:
+        """Record that the source refused, and say so once.
+
+        Written down rather than held in memory because a scrape is its own
+        process: a flag on the object lasts one game, so the source would be
+        asked, refused and logged again for every game left in the scan.
+        """
+        if self.exhausted:
+            return
+        wait = self.REFUSAL_DAYS if days is None else days
+        self._refusal = {"until": time.time() + wait * 86400, "why": message}
+        self.cache.save(self.REFUSAL, self._refusal)
+        self.log(message, True)

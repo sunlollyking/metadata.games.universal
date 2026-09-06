@@ -115,10 +115,9 @@ class ScreenScraperProvider(OnlineProvider):
             try:
                 doc = {"xml": self._call(SYSTEM_LIST, {}, request)}
             except net.Error as err:
-                if getattr(err, "status", None) == 429 and not self.exhausted:
-                    self.exhausted = True
-                    self.log("{} is turning requests away; not asking again until "
-                             "Kodi restarts".format(self.name), True)
+                if getattr(err, "status", None) == 429:
+                    self.stop_asking("{} is turning requests away; not asking again "
+                                     "for now".format(self.name))
                 self.log("system list failed: {}".format(err), True)
                 return None
             self.cache.save("systems", doc)
