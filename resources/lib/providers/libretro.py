@@ -123,6 +123,9 @@ class Catalogue:
         self.serial: Dict[str, dict] = {}
         self.by_key: Dict[str, List[dict]] = defaultdict(list)
         self.by_name: Dict[str, List[dict]] = defaultdict(list)
+        self.by_head: Dict[str, List[dict]] = defaultdict(list)
+        self.head_titles: Dict[str, set] = defaultdict(set)
+        self._heads_folded = False
 
     def load(self, path: str) -> None:
         for rec in rdb.records(path):
@@ -139,11 +142,41 @@ class Catalogue:
                 index.setdefault(value, rec)
         for key in serial_keys(norm_serial(rec.get("serial"))):
             self.serial.setdefault(key, rec)
-        self.by_key[name_key(name)].append(rec)
+        # A catalogue entry can hold one game under two names, Western and
+        # Japanese: "Blue's Journey / Raguy". Indexed only as the pair, neither
+        # half finds it, and a set named after one half matches nothing.
+        title = namer.parse(name, strip_extension=False)["title"]
+        keys = {namer.normalise(title)}  # the whole name, which some sets use
+        for alt in namer.alternate_titles(title):
+            keys.add(namer.normalise(alt))
+            head = namer.subtitle_head(alt)
+            if head:
+                head_key = namer.normalise(head)
+                self.by_head[head_key].append(rec)
+                self.head_titles[head_key].add(namer.normalise(alt))
+        for key in keys:
+            if key:
+                self.by_key[key].append(rec)
         self.by_name[name].append(rec)
+
+    def _fold_heads(self) -> None:
+        """Let a name shorn of its subtitle find the game, where that is safe.
+
+        "galaxyfight" should reach "Galaxy Fight - Universal Warriors". But a
+        head several games share picks one of them arbitrarily -- "Zelda II"
+        heads four different NES records -- and a wrong description is worse
+        than none, so an ambiguous head is left out. An exact title always wins.
+        """
+        if self._heads_folded:
+            return
+        self._heads_folded = True
+        for key, recs in self.by_head.items():
+            if len(self.head_titles[key]) == 1 and key not in self.by_key:
+                self.by_key[key].extend(recs)
 
     def find(self, query: Dict[str, str]) -> List[dict]:
         """Candidates for the identity in query, best first; empty when nothing matches."""
+        self._fold_heads()
         for param, index in (("crc32", self.crc), ("md5", self.md5), ("sha1", self.sha1)):
             value = query.get(param, "").strip().lower()
             if value and value in index:
@@ -225,7 +258,6 @@ class Catalogue:
         out: Dict[str, Any] = {
             "version": 1,
             "title": tags["display"],
-            "originaltitle": name,
             "overview": rdb.textfield(rec, "description"),
             "developers": _one(rec, "developer"),
             "publishers": _one(rec, "publisher"),

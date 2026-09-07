@@ -228,6 +228,19 @@ def game_name(jeu: ET.Element, prefs: Sequence[str]) -> str:
     return text(pick([n for n in jeu.findall("noms/nom") if text(n)], "region", prefs))
 
 
+def native_name(jeu: ET.Element) -> str:
+    """The game's name in the language it was sold in, where there is one.
+
+    The region is matched strictly rather than through pick(), which falls back
+    to the first name it holds -- for a game that only ever sold in the West
+    that would file the Western name as the original.
+    """
+    for elem in jeu.findall("noms/nom"):
+        if elem.get("region") == "jp" and text(elem):
+            return text(elem)
+    return ""
+
+
 def name_matches(jeu: ET.Element, request: Request) -> bool:
     filename = request.get("filename").strip().casefold()
     if filename:
@@ -346,7 +359,6 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "version": 1,
         "title": game_name(jeu, prefs),
-        "originaltitle": game_name(jeu, ("ss",)),
         "overview": synopsis(jeu),
         "developers": [text(jeu.find("developpeur"))] if text(jeu.find("developpeur")) else [],
         "publishers": [text(jeu.find("editeur"))] if text(jeu.find("editeur")) else [],
@@ -358,6 +370,9 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
         "releases": [r for r in (release(rom) for rom in jeu.findall("roms/rom")) if r],
         "art": media(medias, art_map, art_prefs),
     }
+    native = native_name(jeu)
+    if native and namer.normalise(native) != namer.normalise(out["title"]):
+        out["originaltitle"] = native
     date = release_date(jeu, prefs)
     if date:
         out["releasedate"] = date

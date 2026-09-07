@@ -123,7 +123,10 @@ class ScraperTest(unittest.TestCase):
         self.assertTrue(succeeded)
         self.assertEqual(details["version"], 1)
         self.assertEqual(details["title"], "Sonic The Hedgehog 2")
-        self.assertEqual(details["originaltitle"], SONIC2_WORLD)
+        # An original title is the game's name in the language it sold in, so a
+        # game that went out under one name everywhere has none. The dump's own
+        # name is on the release below, which is where it belongs
+        self.assertNotIn("originaltitle", details)
         self.assertEqual(details["year"], 1992)
         self.assertEqual(details["releasedate"], "1992-11")
         self.assertEqual(details["developers"], ["SEGA"])
