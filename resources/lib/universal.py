@@ -16,7 +16,7 @@ IDENTITY_MATCHES = ("hash", "serial")
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
                  "players", "ratings", "ageratings", "releasedate", "year",
-                 "achievements", "manual", "trailer", "originaltitle")
+                 "achievements", "manual", "trailer", "originaltitle", "edition")
 PLATFORM_FIELDS = ("name", "manufacturer", "released", "discontinued", "overview")
 
 
@@ -118,6 +118,15 @@ class Universal:
             self.log("{} is in the provider order but {} {} not set, so it is not "
                      "being asked".format(provider.name, ", ".join(missing),
                                           "is" if len(missing) == 1 else "are"), True)
+
+    def begin_batch(self) -> None:
+        """Start this batch willing to go online again.
+
+        The engine outlives any one batch, so without this a single slow batch
+        would leave every later one reading the catalogue alone for the rest of
+        the process.
+        """
+        self._offline = False
 
     def stay_offline(self) -> None:
         """Answer the rest of this run from the offline catalogue alone.

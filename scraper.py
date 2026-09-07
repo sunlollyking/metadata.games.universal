@@ -152,6 +152,7 @@ def findmany(handle: int, query: Dict[str, str]) -> None:
         log("findmany: preparing the batch failed: {}".format(traceback.format_exc()), True)
 
     found = 0
+    engine.begin_batch()
     started = time.time()
     for index, merged in enumerate(merged_queries):
         # A batch that is taking too long finishes from the offline catalogue.

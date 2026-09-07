@@ -12,7 +12,7 @@ import kodistubs  # noqa: E402
 kodistubs.install()
 
 from resources.lib import universal  # noqa: E402
-from resources.lib.providers import Provider, Request  # noqa: E402
+from resources.lib.providers import OnlineProvider, Provider, Request  # noqa: E402
 from resources.lib.providers import igdb, retroachievements, screenscraper, thegamesdb  # noqa: E402
 
 ALL = "a,b,c"
@@ -266,6 +266,32 @@ class RequestTest(unittest.TestCase):
         self.assertEqual(Request({"platformids": "{broken"}, {}).platformids, {})
         self.assertEqual(Request({"platformids": "[1]"}, {}).platformids, {})
         self.assertEqual(Request({}, {}).get("title", "x"), "x")
+
+
+class ScriptedOnline(OnlineProvider):
+    """A web-backed provider, which is what the offline fallback leaves out."""
+
+    def __init__(self, name, candidates=()):
+        super().__init__(no_log)
+        self.name = name
+        self.candidates = list(candidates)
+
+    def find(self, request):
+        return [dict(c) for c in self.candidates]
+
+
+class OfflineFallbackTest(unittest.TestCase):
+    def test_staying_offline_lasts_one_batch(self):
+        online = ScriptedOnline("a", [cand("1", "hash")])
+        engine = universal.Universal([online], no_log)
+        self.assertEqual([c["id"] for c in engine.find(request("a"))], ["a:1"])
+
+        engine.stay_offline()
+        self.assertEqual(engine.find(request("a")), [])
+
+        # The engine outlives the batch, so the next one has to go online again
+        engine.begin_batch()
+        self.assertEqual([c["id"] for c in engine.find(request("a"))], ["a:1"])
 
 
 if __name__ == "__main__":
