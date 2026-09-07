@@ -9,6 +9,7 @@ art types it lacks, never replacing what is already there.
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .budget import Budget
+from . import namer
 from .providers import Log, OnlineProvider, Provider, Request
 
 IDENTITY_MATCHES = ("hash", "serial")
@@ -53,6 +54,22 @@ def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) ->
             if url and url not in seen:
                 held.append(entry)
                 seen.add(url)
+
+
+def is_just_the_title(overview: Any, title: str) -> bool:
+    """Whether an overview says nothing the title has not already said.
+
+    Arcade and some cartridge catalogues put the game's own name in their
+    description field -- "Panzer Dragoon (USA) (5S)". Kodi refuses those, but
+    by then it is too late: an overview that is really a name still counts as
+    one while sources are merged, so it keeps out the source that has real
+    prose and the game ends up with no description at all.
+    """
+    text = str(overview or "").strip()
+    if not text or not title:
+        return False
+    bare = namer.parse(text, strip_extension=False).get("title") or text
+    return namer.normalise(bare) == namer.normalise(title)
 
 
 def provider_order(settings: Dict[str, Any]) -> List[str]:
@@ -174,6 +191,8 @@ class Universal:
         details = primary.details(local_id, request)
         if details is None:
             return None
+        if is_just_the_title(details.get("overview"), str(details.get("title") or request.title())):
+            details.pop("overview", None)
         # The others are asked about the game the first one identified, not
         # about the file name. A scene-named dump reads "Crazy Taxi v1.004
         # (1999)(Sega)(US)[!][10S]"; once the disc's serial has named it "Crazy

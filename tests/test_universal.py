@@ -296,3 +296,27 @@ class OfflineFallbackTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NameOnlyOverviewTest(unittest.TestCase):
+    def test_an_overview_that_is_the_file_name_counts_as_nothing(self):
+        self.assertTrue(universal.is_just_the_title("Panzer Dragoon (USA) (5S)", "Panzer Dragoon"))
+        self.assertTrue(universal.is_just_the_title(
+            "Time Gal & Ninja Hayate (Japan) (En,Ja) (Disc 2)", "Time Gal & Ninja Hayate"))
+
+    def test_real_prose_is_kept(self):
+        self.assertFalse(universal.is_just_the_title(
+            "A vertically scrolling shooter set in the Pacific.", "1942"))
+
+    def test_an_empty_one_is_not_a_title(self):
+        self.assertFalse(universal.is_just_the_title("", "1942"))
+        self.assertFalse(universal.is_just_the_title(None, "1942"))
+
+    def test_the_junk_gives_way_to_a_source_with_prose(self):
+        first = Scripted("a", [cand("1", "hash")],
+                         {"1": {"title": "Panzer Dragoon", "overview": "Panzer Dragoon (USA) (5S)"}})
+        second = Scripted("b", [cand("2", "name")],
+                          {"2": {"title": "Panzer Dragoon", "overview": "A rail shooter on the back of a dragon."}})
+        engine = universal.Universal([first, second], no_log)
+        details = engine.details("a:1", request("a,b"))
+        self.assertEqual(details["overview"], "A rail shooter on the back of a dragon.")
