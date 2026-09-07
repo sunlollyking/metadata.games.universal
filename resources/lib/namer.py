@@ -5,7 +5,7 @@ TOSEC (Title (1985)(Publisher)[a][cr Group]) and GoodTools ([!] [b1] [h1]).
 Everything recognised is stripped into fields; what is left is the title.
 """
 import re
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 REGIONS = {
     "usa": "USA", "us": "USA", "u": "USA", "canada": "Canada",
@@ -167,6 +167,35 @@ def display_title(title: str) -> str:
 
 
 _norm_rx = re.compile(r"[^a-z0-9]+")
+
+
+def alternate_titles(title: str) -> List[str]:
+    """One game under both its names.
+
+    A catalogue entry often carries the Western and Japanese title together,
+    joined by a slash -- "Blue's Journey / Raguy". Either half identifies the
+    game; the two of them run together identifies nothing.
+    """
+    parts = [p.strip() for p in re.split(r"\s*/\s*", title)]
+    parts = [p for p in parts if p]
+    return parts or [title]
+
+
+def spacing_variants(title: str) -> List[str]:
+    """The same name with its spacing closed up.
+
+    Catalogues disagree about whether a compound name is one word or two --
+    "Castlequest" against "Castle Quest" -- and a search for one does not find
+    the other.
+    """
+    joined = re.sub(r"\s+", "", title)
+    return [joined] if joined and joined != title else []
+
+
+def subtitle_head(title: str) -> str:
+    """"Galaxy Fight - Universal Warriors" -> "Galaxy Fight"; "" if there is none."""
+    head = title.split(" - ")[0].strip()
+    return head if head and head != title.strip() else ""
 
 
 def normalise(title: str) -> str:

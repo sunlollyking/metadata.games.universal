@@ -38,21 +38,61 @@ MIN_INTERVAL = 0.25
 #: How many titles one prefetch query asks about
 PREFETCH_CHUNK = 60
 TOKEN_MARGIN = 60
-SEARCH_FIELDS = ("id,name,first_release_date,platforms,game_type,category",
-                 "id,name,first_release_date,platforms")
+SEARCH_FIELDS = ("id,name,alternative_names.name,first_release_date,platforms,game_type,category",
+                 "id,name,alternative_names.name,first_release_date,platforms")
 DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_rating_count,"
                  "involved_companies.company.name,involved_companies.developer,involved_companies.publisher,"
-                 "genres.name,themes.name,franchises.name,game_modes.name,"
+                 "genres.name,themes.name,franchises.name,franchise.name,game_modes.name,"
                  "multiplayer_modes.offlinemax,multiplayer_modes.offlinecoop,multiplayer_modes.platform,"
+                 "multiplayer_modes.onlinemax,multiplayer_modes.splitscreen,multiplayer_modes.campaigncoop,"
                  "cover.image_id,screenshots.image_id,artworks.image_id,"
-                 "release_dates.date,release_dates.platform,release_dates.region")
+                 "release_dates.date,release_dates.platform,release_dates.region,"
+                 # Everything below is recorded rather than shown today, so that
+                 # what to do with it stays a decision and not another scrape
+                 "status,version_title,parent_game.name,player_perspectives.name,"
+                 "keywords.name,game_engines.name,alternative_names.name,alternative_names.comment,"
+                 "language_supports.language.name,videos.video_id,videos.name,"
+                 "similar_games.name,aggregated_rating,aggregated_rating_count,"
+                 "rating,rating_count,hypes,websites.url,"
+                 "dlcs.name,expansions.name,remakes.name,remasters.name,ports.name")
 DETAIL_FIELDS = (
-    DETAIL_COMMON + ",collections.name,age_ratings.rating_category,age_ratings.organization,release_dates.date_format",
-    DETAIL_COMMON + ",collection.name,age_ratings.rating,age_ratings.category,release_dates.category",
+    DETAIL_COMMON + ",game_type,collections.name,age_ratings.rating_category,age_ratings.organization,"
+                    "release_dates.date_format,websites.type.type,language_supports.language_support_type.name",
+    DETAIL_COMMON + ",category,collection.name,age_ratings.rating,age_ratings.category,"
+                    "release_dates.category,websites.category",
 )
 PLATFORM_LIST_FIELDS = "name,alternative_name,abbreviation,slug"
 PLATFORM_FIELDS = "name,alternative_name,abbreviation,summary,platform_logo.image_id,generation,versions.companies.company.name"
-MAIN_GAME = 0
+#: Kinds that are the game itself rather than something sold alongside it.
+#: A console release is often filed as a port or a remake -- IGDB has the NES
+#: Castlequest as a port of the MSX original -- so taking only the main game
+#: throws away the very version a ROM is.
+GAME_ITSELF = frozenset({
+    0,   # main game
+    4,   # standalone expansion
+    8,   # remake
+    9,   # remaster
+    5,   # mod -- a ROM hack or fan translation is a dump in its own right
+    3,   # bundle -- a compilation is one file in the library, so it is a game
+    13,  # pack -- as above
+    10,  # expanded game
+    11,  # port
+    12,  # fork
+})
+
+#: What to call a kind that is worth telling someone about. The main game is
+#: left unnamed: every library is mostly main games, so saying so says nothing.
+EDITION_NAMES = {
+    3: "Compilation",
+    13: "Compilation",
+    4: "Standalone Expansion",
+    5: "Mod",
+    8: "Remake",
+    9: "Remaster",
+    10: "Expanded Game",
+    11: "Port",
+    12: "Fork",
+}
 BOARDS = {1: "ESRB", 2: "PEGI", 3: "CERO", 4: "USK", 5: "GRAC", 6: "CLASS_IND", 7: "ACB"}
 RATINGS = {
     1: "3", 2: "7", 3: "12", 4: "16", 5: "18", 6: "RP", 7: "EC", 8: "E", 9: "E10+", 10: "T", 11: "M", 12: "AO",
@@ -102,12 +142,10 @@ class IgdbProvider(OnlineProvider):
                 body = "where platforms = ({}) & name = ({}); limit 500;".format(platform_id, quoted)
                 rows = self._query("games", DETAIL_FIELDS, body, titles[chunk[0]])
                 for row in rows or []:
-                    if not main_game(row):
+                    if not is_the_game(row):
                         continue
-                    key = namer.normalise(str(row.get("name") or ""))
-                    if not key:
-                        continue
-                    self._known.setdefault((platform_id, key), row)
+                    for key in title_keys(row):
+                        self._known.setdefault((platform_id, key), row)
                     self._by_id[str(row.get("id"))] = row
 
     def find(self, request: Request) -> List[dict]:
@@ -123,17 +161,42 @@ class IgdbProvider(OnlineProvider):
 
         body = 'search "{}"; where platforms = ({}); limit 50;'.format(apicalypse(title), platform_id)
         games = self._query("games", SEARCH_FIELDS, body, request)
-        return [candidate(g) for g in games or []
-                if main_game(g) and namer.normalise(str(g.get("name") or "")) == key]
+        matches = self._same_game(games, key)
+        if matches:
+            return matches
+
+        # The search does not find "Castlequest" when asked about "Castle
+        # Quest", so a name the catalogues space differently is asked for
+        # directly. The operator has to be the case-insensitive one; plain
+        # equality here is case-sensitive.
+        for variant in namer.spacing_variants(title):
+            rows = self._query("games", SEARCH_FIELDS,
+                               'where platforms = ({}) & name ~ "{}"; limit 5;'.format(
+                                   platform_id, apicalypse(variant)), request)
+            matches = self._same_game(rows, key)
+            if matches:
+                return matches
+        return []
+
+    @staticmethod
+    def _same_game(rows: Optional[List[dict]], key: str) -> List[dict]:
+        return [candidate(g) for g in rows or [] if is_the_game(g) and key in title_keys(g)]
 
     def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
         if not candidate_id.isdigit():
             return None
         known = self._by_id.get(candidate_id)
         if known is not None:
-            return game_details(known, self._platform_id(request))
+            return self._detailed(known, request)
         games = self._query("games", DETAIL_FIELDS, "where id = {}; limit 1;".format(candidate_id), request)
-        return game_details(games[0], self._platform_id(request)) if games else None
+        return self._detailed(games[0], request) if games else None
+
+    def _detailed(self, row: dict, request: Request) -> Dict[str, Any]:
+        out = game_details(row, self._platform_id(request))
+        # What the cabinet is says more than that the game is a port of itself
+        if is_vs_system(request):
+            out["edition"] = "Arcade"
+        return out
 
     def platform(self, request: Request) -> Optional[Dict[str, Any]]:
         platform_id = self._platform_id(request)
@@ -149,7 +212,11 @@ class IgdbProvider(OnlineProvider):
             if rows is None:
                 return ""
             self.cache.save("platforms", rows)
-        platform_id = resolve_platform(rows, platform_names(request))
+        # Asked narrowly: a blanket fall back to Arcade would match an ordinary
+        # console game to the arcade game it shares a name with, and hand it the
+        # wrong description and pictures
+        names = ["Arcade"] if is_vs_system(request) else platform_names(request)
+        platform_id = resolve_platform(rows, names)
         if not platform_id:
             self.log("no IGDB platform matches {!r}".format(request.get("platform")), False)
         return platform_id
@@ -158,17 +225,27 @@ class IgdbProvider(OnlineProvider):
                request: Request) -> Optional[List[dict]]:
         """Rows for an Apicalypse body, tried with each field list in turn; None when nothing usable came back."""
         for index, fields in enumerate(field_variants):
-            try:
-                rows = self._post(endpoint, "fields {}; {}".format(fields, body), request)
-            except net.Error as err:
-                if getattr(err, "status", None) == 429:
-                    self.stop_asking("{} is turning requests away; not asking again "
-                                     "for now".format(self.name))
-                if err.status == 400 and index + 1 < len(field_variants):
-                    continue
-                self.log("{} query failed: {}".format(endpoint, err), True)
-                return None
-            return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else None
+            for attempt in (1, 2, 3):
+                try:
+                    rows = self._post(endpoint, "fields {}; {}".format(fields, body), request)
+                except net.Error as err:
+                    if getattr(err, "status", None) == 429:
+                        # IGDB allows about four requests a second, which a bulk
+                        # scan trips constantly. Wait and ask again: giving up on
+                        # the first refusal switched the source off for the rest
+                        # of the run, so a platform got one short burst of
+                        # answers and nothing afterwards.
+                        if attempt < 3:
+                            time.sleep(attempt)
+                            continue
+                        self.stop_asking("{} is turning requests away even after "
+                                         "backing off; not asking again for now".format(self.name))
+                        return None
+                    if err.status == 400 and index + 1 < len(field_variants):
+                        break  # this field list is not understood; try the next
+                    self.log("{} query failed: {}".format(endpoint, err), True)
+                    return None
+                return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else None
         return None
 
     def _post(self, endpoint: str, body: str, request: Request) -> Any:
@@ -232,9 +309,57 @@ def resolve_platform(rows: Sequence[dict], names: Sequence[str]) -> str:
     return ""
 
 
-def main_game(game: dict) -> bool:
+#: Comments IGDB writes by hand against an alternative name. A romanisation is
+#: the game's own title in Latin script, which is what "original title" means
+#: here; a translation, a respelling or an abbreviation is not.
+def original_title(game: dict) -> str:
+    fallback = ""
+    for entry in game.get("alternative_names") or []:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        comment = str(entry.get("comment") or "").lower()
+        if not name or "title" not in comment:
+            continue
+        if "romani" in comment:
+            return name
+        if not any(word in comment for word in ("translat", "alternative", "abbrev", "spelling")):
+            fallback = fallback or name
+    return fallback
+
+
+def title_keys(game: dict) -> set:
+    """Every name this game answers to, normalised.
+
+    A dump is often named in the language it was sold in -- "Akumajou
+    Densetsu" for Castlevania III -- and the catalogue files that as an
+    alternative name rather than the title.
+    """
+    keys = {namer.normalise(str(game.get("name") or ""))}
+    keys.update(namer.normalise(name) for name in names(game, "alternative_names"))
+    keys.discard("")
+    return keys
+
+
+#: Markers that a dump is for Nintendo's VS. System or PlayChoice-10. Both are
+#: arcade cabinets built from console parts, so the file sits in the console's
+#: folder and plays on a console emulator, but the catalogue rightly files the
+#: game under Arcade.
+VS_SYSTEM_TAGS = ("unisystem", "playchoice", "dualsystem")
+
+
+def is_vs_system(request: Request) -> bool:
+    title = str(request.title() or "").strip().lower()
+    if title.startswith("vs. ") or title.startswith("vs "):
+        return True
+    name = str(request.get("filename") or "").lower()
+    return any(tag in name for tag in VS_SYSTEM_TAGS)
+
+
+def is_the_game(game: dict) -> bool:
+    """Whether the row is the game, rather than an add-on, bundle or episode."""
     kind = game.get("game_type", game.get("category"))
-    return kind is None or kind == MAIN_GAME
+    return kind is None or kind in GAME_ITSELF
 
 
 def candidate(game: dict) -> dict:
@@ -332,6 +457,12 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
         "uniqueids": {"igdb": str(game.get("id"))},
         "art": art(game),
     }
+    edition = EDITION_NAMES.get(game.get("game_type", game.get("category")))
+    if edition:
+        out["edition"] = edition
+    native = original_title(game)
+    if native and namer.normalise(native) != namer.normalise(out["title"]):
+        out["originaltitle"] = native
     date = release_date(game, platform_id)
     if date:
         out["releasedate"] = date
@@ -346,6 +477,69 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     if isinstance(rating, (int, float)) and not isinstance(rating, bool):
         out["ratings"] = {"igdb": {"rating": round(float(rating), 1), "max": 100,
                                    "votes": int(game.get("total_rating_count") or 0)}}
+    critic = game.get("aggregated_rating")
+    if isinstance(critic, (int, float)) and not isinstance(critic, bool):
+        out.setdefault("ratings", {})["igdbcritic"] = {
+            "rating": round(float(critic), 1), "max": 100,
+            "votes": int(game.get("aggregated_rating_count") or 0)}
+    # Keywords, perspectives and engines are all tags as far as the library is
+    # concerned, and it already has somewhere to put them
+    tags = names(game, "keywords") + names(game, "player_perspectives") + names(game, "game_engines")
+    if tags:
+        out["tags"] = list(dict.fromkeys(tags))
+    extra = wider(game)
+    if extra:
+        out["igdb"] = extra
+    return out
+
+
+#: Lists worth keeping whole, by the name they are given back under
+WIDER_LISTS = (("player_perspectives", "perspectives"), ("keywords", "keywords"),
+               ("game_engines", "engines"), ("alternative_names", "alsoknownas"),
+               ("similar_games", "similar"), ("dlcs", "dlc"), ("expansions", "expansions"),
+               ("remakes", "remakes"), ("remasters", "remasters"), ("ports", "ports"))
+#: Single numbers worth keeping, by the name they are given back under
+WIDER_NUMBERS = (("aggregated_rating", "criticrating"), ("aggregated_rating_count", "criticvotes"),
+                 ("rating", "userrating"), ("rating_count", "uservotes"), ("hypes", "hypes"))
+
+
+def wider(game: dict) -> Dict[str, Any]:
+    """What IGDB knows beyond the fields the library has a home for.
+
+    Kept together under one key so a later decision about where any of it
+    belongs does not mean scraping the whole collection again.
+    """
+    out: Dict[str, Any] = {}
+    for field, key in WIDER_LISTS:
+        values = names(game, field)
+        if values:
+            out[key] = values
+    for field, key in WIDER_NUMBERS:
+        value = game.get(field)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            out[key] = round(float(value), 1) if "rating" in key else int(value)
+    for field, key in (("status", "status"), ("version_title", "versiontitle")):
+        if game.get(field) not in (None, ""):
+            out[key] = game[field]
+    parent = game.get("parent_game")
+    if isinstance(parent, dict) and parent.get("name"):
+        out["parent"] = str(parent["name"])
+    languages = []
+    for entry in game.get("language_supports") or []:
+        language = entry.get("language") if isinstance(entry, dict) else None
+        if isinstance(language, dict) and language.get("name"):
+            languages.append(str(language["name"]))
+    if languages:
+        out["languages"] = list(dict.fromkeys(languages))
+    sites = [str(w["url"]) for w in game.get("websites") or []
+             if isinstance(w, dict) and w.get("url")]
+    if sites:
+        out["websites"] = sites
+    videos = ["https://www.youtube.com/watch?v=" + str(v["video_id"])
+              for v in game.get("videos") or [] if isinstance(v, dict) and v.get("video_id")]
+    if videos:
+        out["videos"] = videos
+        out.setdefault("trailer", videos[0])
     return out
 
 
