@@ -16,7 +16,7 @@ IDENTITY_MATCHES = ("hash", "serial")
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
                  "players", "ratings", "ageratings", "releasedate", "year",
-                 "achievements", "manual", "trailer", "originaltitle", "edition")
+                 "achievements", "manual", "trailer", "originaltitle", "edition", "tags")
 PLATFORM_FIELDS = ("name", "manufacturer", "released", "discontinued", "overview")
 
 
