@@ -65,6 +65,9 @@ MEDIUM_ART = ("support-2D", "support-texture", "support-3D")
 ART_STRINGS = {"video": "trailer", "video-normalized": "trailer", "manuel": "manual"}
 SYSTEM_ART = {"logo-monochrome": "logo", "wheel": "clearlogo", "photo": "photo", "illustration": "fanart",
               "controller": "controller", "icon": "icon"}
+#: The service marks a record that is not a game -- a BIOS image, a cheat
+#: cartridge, a test rom -- with this, and names it "ZZZ(notgame):...".
+NOT_A_GAME = "notgame"
 ROM_FLAGS = (("beta", "beta"), ("proto", "proto"), ("demo", "demo"))
 STATUS_WORDS = {word for _, word in namer.DEVSTATUS}
 PLAYERS = re.compile(r"^\s*(\d+)\s*(?:-\s*(\d+))?\s*$")
@@ -86,6 +89,9 @@ class ScreenScraperProvider(OnlineProvider):
         jeu = self._lookup(params, request)
         if jeu is None:
             return []
+        if not_a_game(jeu):
+            self.log("record {} is filed as not a game; dropped".format(jeu.get("id")), False)
+            return []
         if self._hash_matched(jeu, request):
             score, matchedby = 1.0, "hash"
         elif name_matches(jeu, request):
@@ -104,7 +110,9 @@ class ScreenScraperProvider(OnlineProvider):
             if system:
                 params["systemeid"] = system
             jeu = self._lookup(params, request)
-        return game_details(jeu, request) if jeu is not None else None
+        if jeu is None or not_a_game(jeu):
+            return None
+        return game_details(jeu, request)
 
     def platform(self, request: Request) -> Optional[Dict[str, Any]]:
         system = request.platform_id(self.name)
@@ -222,6 +230,11 @@ def pick(elements: Sequence[ET.Element], attr: str, prefs: Sequence[str]) -> Opt
             if elem.get(attr) == region:
                 return elem
     return elements[0] if elements else None
+
+
+def not_a_game(jeu: ET.Element) -> bool:
+    """Whether the service says this record is not a game."""
+    return str(jeu.get(NOT_A_GAME) or "").strip().lower() == "true"
 
 
 def game_name(jeu: ET.Element, prefs: Sequence[str]) -> str:

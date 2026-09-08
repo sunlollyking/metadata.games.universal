@@ -24,6 +24,8 @@ THUMB_INDEX_URL = "https://api.github.com/repos/libretro-thumbnails/{}/git/trees
 THUMB_URL = "https://raw.githubusercontent.com/libretro-thumbnails/{}/master/{}/{}.png"
 ART_FOLDERS = (("boxfront", "Named_Boxarts"), ("titlescreen", "Named_Titles"), ("screenshot", "Named_Snaps"))
 THUMB_UNSAFE = str.maketrans({c: "_" for c in '&*/:`<>?\\|"'})
+#: A git tree entry that is a symlink rather than a file of its own
+SYMLINK_MODE = "120000"
 #: RetroArch ships an icon for every machine it runs, named exactly as the
 #: catalogues are, which is the one picture of a system available without a key
 SYSTEM_ICON_INDEX_URL = "https://api.github.com/repos/libretro/retroarch-assets/git/trees/master?recursive=1"
@@ -479,6 +481,11 @@ class Store:
         for entry in tree.get("tree", []):
             entry_path = entry.get("path", "")
             if not entry_path.endswith(".png"):
+                continue
+            # A variant is often a symlink to the picture it shares. Raw github
+            # serves those as a line of text naming the target, which is not an
+            # image, so leave them out; the file they point at is listed too.
+            if entry.get("mode") == SYMLINK_MODE:
                 continue
             folder, _, filename = entry_path.partition("/")
             if folder in wanted and filename:
