@@ -120,3 +120,11 @@ msgctxt "#30044"
 msgid "A public key allows a thousand requests a month, and looking one game up costs two or three of them. A scan makes this many lookups and then leaves TheGamesDB alone until next month; a game you refresh yourself is always looked up. Zero keeps it out of scans entirely."
 msgstr ""
 
+msgctxt "#30045"
+msgid "Use the LaunchBox catalogue"
+msgstr ""
+
+msgctxt "#30046"
+msgid "LaunchBox publishes its whole database as one file rather than a service you ask game by game. Turning this on downloads about a hundred megabytes once a month and answers every game from it offline afterwards. The catalogue is written by its users, so a picture may be a scan, a reconstruction or fan art; real scans are preferred where a game has one."
+msgstr ""
+

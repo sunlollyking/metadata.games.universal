@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
-    igdb, libretro, regvault, retroachievements, screenscraper, thegamesdb, wikidata)
+    igdb, launchbox, libretro, regvault, retroachievements, screenscraper, thegamesdb, wikidata)
 
 #: How long a batch may spend on the web before it finishes offline
 BATCH_SECONDS = 90
@@ -99,6 +99,7 @@ def scraper() -> universal.Universal:
             igdb.IgdbProvider(log, cache_dir),
             thegamesdb.TheGamesDbProvider(log, cache_dir),
             regvault.RegVaultProvider(log),
+            launchbox.LaunchBoxProvider(log, cache_dir),
             wikidata.WikidataProvider(log, cache_dir),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
