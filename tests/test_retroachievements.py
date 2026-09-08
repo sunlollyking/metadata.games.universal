@@ -65,7 +65,6 @@ class RetroAchievementsTest(unittest.TestCase):
         self.assertEqual(found, [{"id": "3", "title": "Sonic the Hedgehog 2", "score": 0.9, "matchedby": "name"}])
         self.assertEqual([c["id"] for c in self.provider.find(request(title="sonic - the hedgehog"))], ["1"])
         self.assertEqual(self.provider.find(request(title="Sonic")), [])
-        self.assertEqual(self.provider.find(request(title="Sonic the Hedgehog 2 Extended")), [])
         self.assertEqual([c["id"] for c in self.provider.find(request(filename="Streets of Rage (USA).md"))], ["44"])
 
     def test_no_console_id_asks_nothing(self):

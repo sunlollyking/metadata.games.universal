@@ -50,6 +50,29 @@ MD5_CONSOLES = frozenset((
 ART = (("boxfront", "ImageBoxArt"), ("titlescreen", "ImageTitle"), ("screenshot", "ImageIngame"),
        ("icon", "ImageIcon"))
 GENRE_SPLIT = re.compile(r"\s*/\s*|,\s*")
+#: The service files test carts, BIOS images and multicart menus under a set
+#: whose title begins with this. They are not games and have nothing to say.
+NOT_A_GAME = "zzz(notgame)"
+#: A set title may open with the kind of release it covers, e.g.
+#: "~Hack~ Sonic Boom". The name of the game is what follows.
+SET_KIND = re.compile(r"^\s*(?:~[^~]*~\s*)+")
+#: A hack and the game it is built from can carry the same name, so let the
+#: plain set win when a name matches both.
+NAME_SCORE = 0.9
+MARKED_NAME_SCORE = 0.85
+
+
+def set_title(title: Any) -> str:
+    """The game's name, without the markers the service puts on a set."""
+    return SET_KIND.sub("", str(title or "")).strip()
+
+
+def name_score(title: Any) -> float:
+    return MARKED_NAME_SCORE if set_title(title) != str(title or "").strip() else NAME_SCORE
+
+
+def is_not_a_game(title: Any) -> bool:
+    return str(title or "").strip().lower().startswith(NOT_A_GAME)
 
 
 def int_or(value: Any, fallback: int = 0) -> int:
@@ -115,21 +138,26 @@ class RetroAchievementsProvider(OnlineProvider):
         if not rahash and console in MD5_CONSOLES:
             rahash = request.get("md5").strip().lower()
         if rahash:
-            hits = [g for g in games if rahash in {str(h).lower() for h in g.get("Hashes") or []}]
+            hits = [g for g in games if rahash in {str(h).lower() for h in g.get("Hashes") or []}
+                    and not is_not_a_game(g.get("Title"))]
             if hits:
                 return [candidate(g, 1.0, "hash") for g in hits]
         key = namer.normalise(request.title())
         if not key:
             return []
-        return [candidate(g, 0.9, "name") for g in games if namer.normalise(str(g.get("Title") or "")) == key]
+        return [candidate(g, name_score(g.get("Title")), "name") for g in games
+                if not is_not_a_game(g.get("Title"))
+                and namer.normalise(set_title(g.get("Title"))) == key]
 
     def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
         game = self._game(candidate_id, request)
         if not isinstance(game, dict) or not game.get("Title"):
             return None
+        if is_not_a_game(game.get("Title")):
+            return None
         out: Dict[str, Any] = {
             "version": 1,
-            "title": str(game["Title"]),
+            "title": set_title(game["Title"]),
             "developers": _one(game.get("Developer")),
             "publishers": _one(game.get("Publisher")),
             "genres": [g for g in GENRE_SPLIT.split(str(game.get("Genre") or "")) if g],
@@ -182,7 +210,8 @@ class RetroAchievementsProvider(OnlineProvider):
 
 
 def candidate(game: dict, score: float, matchedby: str) -> dict:
-    return {"id": str(game.get("ID")), "title": str(game.get("Title") or ""), "score": score, "matchedby": matchedby}
+    return {"id": str(game.get("ID")), "title": set_title(game.get("Title")), "score": score,
+            "matchedby": matchedby}
 
 
 def release_date(released: Any, granularity: Any) -> str:
