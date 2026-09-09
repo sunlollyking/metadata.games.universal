@@ -69,6 +69,11 @@ SYSTEM_ART = {"logo-monochrome": "logo", "wheel": "clearlogo", "photo": "photo",
 #: cartridge, a test rom -- with this, and names it "ZZZ(notgame):...".
 NOT_A_GAME = "notgame"
 ROM_FLAGS = (("beta", "beta"), ("proto", "proto"), ("demo", "demo"))
+#: A dump the service marks as one of these was made from the game it is filed
+#: under rather than being it, so the entry describes the original: its name,
+#: its writing, its studio and its box. What the dump is is worth saying; whose
+#: name it carries is not.
+DERIVED_ROM = (("hack", "Mod"), ("trad", "Fan translation"), ("unl", "Unlicensed"))
 STATUS_WORDS = {word for _, word in namer.DEVSTATUS}
 PLAYERS = re.compile(r"^\s*(\d+)\s*(?:-\s*(\d+))?\s*$")
 DATE = re.compile(r"^\d{4}(-\d{2}){0,2}$")
@@ -364,6 +369,19 @@ def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
     return {art_type: [e for _, e in sorted(entries, key=lambda x: x[0])] for art_type, entries in art.items()}
 
 
+def derived_edition(jeu: ET.Element) -> str:
+    """What this dump is, where it was made from the game it is filed under.
+
+    The service files a hack, a fan translation or an unlicensed reissue under
+    the game it came from, so one entry answers for both. The flags sit on the
+    dump that was matched, not on the entry, which is what tells them apart.
+    """
+    rom = jeu.find("rom")
+    if rom is None:
+        return ""
+    return next((edition for flag, edition in DERIVED_ROM if field(rom, flag) == "1"), "")
+
+
 def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
     prefs = preference(request, NAME_REGIONS)
     art_prefs = preference(request, ART_REGIONS)
@@ -383,8 +401,15 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
         "releases": [r for r in (release(rom) for rom in jeu.findall("roms/rom")) if r],
         "art": media(medias, art_map, art_prefs),
     }
+    # Made from the game this entry describes, so the entry's name belongs to
+    # that game. The catalogue already named this dump; leave that name alone
+    # and say what the dump is instead.
+    if (edition := derived_edition(jeu)):
+        out["edition"] = edition
+        out.pop("title", None)
+
     native = native_name(jeu)
-    if native and namer.normalise(native) != namer.normalise(out["title"]):
+    if native and out.get("title") and namer.normalise(native) != namer.normalise(out["title"]):
         out["originaltitle"] = native
     date = release_date(jeu, prefs)
     if date:

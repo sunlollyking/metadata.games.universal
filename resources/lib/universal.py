@@ -6,6 +6,7 @@ available provider before settling for name matches. Details come from the
 candidate's own provider; the others may fill fields it left empty and add
 art types it lacks, never replacing what is already there.
 """
+import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .budget import Budget
@@ -13,6 +14,11 @@ from . import namer
 from .providers import Log, OnlineProvider, Provider, Request
 
 IDENTITY_MATCHES = ("hash", "serial")
+#: A dump the catalogue marks as one of these was made from another game. A
+#: service that files the two together answers about the one it was made from.
+UNOFFICIAL = frozenset(("pirate", "unlicensed", "aftermarket"))
+#: The trailing number that tells one game in a series from the next
+SERIES_NUMBER = re.compile(r"^(.*?)([0-9]+)$")
 #: What a second provider may fill in where the first said nothing. Art and
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
@@ -32,6 +38,45 @@ def join_id(provider_name: str, local_id: str) -> str:
 
 def is_empty(value: Any) -> bool:
     return value is None or value == "" or value == [] or value == {}
+
+
+
+def names_another_game(known_title: str, offered_title: str, licence: str) -> bool:
+    """Whether a service has answered about a different game from the one asked about.
+
+    Two things go wrong when a service files several dumps under one entry. A
+    hack, a pirate copy or an unlicensed reissue is filed under the game it was
+    made from, so the answer describes that game instead: a pirate Argentine
+    football game comes back as the FIFA title it was built on, down to the
+    publisher and the box. And one game in a series is filed under another, so
+    a sequel is described as its original.
+
+    Both are only worth acting on when the names actually disagree. Services
+    name games differently by region and by language, and the same game arriving
+    under another of its names is ordinary rather than wrong, so a difference on
+    its own says nothing.
+    """
+    known = namer.normalise(known_title)
+    offered = namer.normalise(offered_title)
+    if not known or not offered or known == offered:
+        return False
+
+    # Named as made from another game, and answered about under another name
+    if licence in UNOFFICIAL:
+        return True
+
+    # One of a series answered about as another of it: same words, different
+    # number, which no amount of regional naming explains
+    a, b = SERIES_NUMBER.match(known), SERIES_NUMBER.match(offered)
+    if a and b and a.group(1) == b.group(1) and a.group(2) != b.group(2):
+        return True
+    # ... or numbered against unnumbered, which is the first of a series
+    if a and not b and a.group(1) == offered:
+        return True
+    if b and not a and b.group(1) == known:
+        return True
+
+    return False
 
 
 def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) -> None:
@@ -283,6 +328,18 @@ class Universal:
             year = (known or {}).get("year")
             same_year = [c for c in candidates if year and c.get("year") == year]
             chosen = same_year[0] if same_year else candidates[0]
+
+        # A hash settles which dump this is, not which game a service files it
+        # under, so a match that comes back named as a different game is left
+        # alone rather than written over the one already found.
+        known_title = str((known or {}).get("title") or "")
+        if known_title:
+            licence = str(namer.parse(request.get("filename") or request.title(),
+                                      strip_extension=True).get("licence") or "")
+            if names_another_game(known_title, str(chosen.get("title") or ""), licence):
+                self.log("{} answered about {!r} for {!r}; left out".format(
+                    provider.name, chosen.get("title"), known_title), False)
+                return None
 
         return self._ask(provider, "details", chosen["id"], request)
 
