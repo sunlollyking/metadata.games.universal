@@ -73,7 +73,7 @@ ROM_FLAGS = (("beta", "beta"), ("proto", "proto"), ("demo", "demo"))
 #: under rather than being it, so the entry describes the original: its name,
 #: its writing, its studio and its box. What the dump is is worth saying; whose
 #: name it carries is not.
-DERIVED_ROM = (("hack", "Mod"), ("trad", "Fan translation"), ("unl", "Unlicensed"))
+DERIVED_ROM = (("hack", "Mod"), ("trad", "Fan Translation"), ("unl", "Unlicensed"))
 STATUS_WORDS = {word for _, word in namer.DEVSTATUS}
 PLAYERS = re.compile(r"^\s*(\d+)\s*(?:-\s*(\d+))?\s*$")
 DATE = re.compile(r"^\d{4}(-\d{2}){0,2}$")

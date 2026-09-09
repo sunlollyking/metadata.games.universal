@@ -18,7 +18,7 @@ def test_a_hack_is_called_a_mod():
 
 
 def test_a_fan_translation_says_so():
-    assert ss.derived_edition(jeu(trad="1")) == "Fan translation"
+    assert ss.derived_edition(jeu(trad="1")) == "Fan Translation"
 
 
 def test_an_unlicensed_reissue_says_so():
