@@ -351,6 +351,21 @@ def release(rom: ET.Element) -> Optional[dict]:
     }
 
 
+# The service hands media back with the query that fetched it, the player's own
+# login included. The images load on the developer credentials alone, so the
+# login is not carried into anything the library keeps.
+PLAYER_LOGIN = ("ssid", "sspassword")
+
+
+def public_url(url: str) -> str:
+    """The media URL without the player's login, every other parameter untouched."""
+    base, sep, query = url.partition("?")
+    if not sep:
+        return url
+    kept = [pair for pair in query.split("&") if pair.split("=", 1)[0] not in PLAYER_LOGIN]
+    return base + ("?" + "&".join(kept) if kept else "")
+
+
 def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
           prefs: Sequence[str]) -> Dict[str, List[Dict[str, str]]]:
     """Art entries by Kodi type, each type's regions in preference order."""
@@ -360,7 +375,7 @@ def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
         url = text(m)
         if not art_type or not url:
             continue
-        entry = {"url": url}
+        entry = {"url": public_url(url)}
         region = m.get("region")
         if region:
             entry["region"] = region_name(region)
