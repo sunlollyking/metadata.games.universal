@@ -26,7 +26,8 @@ BATCH_SECONDS = 90
 ADDON_ID = "metadata.games.universal"
 CACHE_DIR_ENV = "METADATA_GAMES_LIBRETRO_CACHE_DIR"
 DEFAULTS: Dict[str, Any] = {
-    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault",
+    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox",
+    "launchbox_bulk": True,
     "cache_days": 30,
     "download": True,
     "tidy_genres": True,
@@ -39,6 +40,7 @@ DEFAULTS: Dict[str, Any] = {
     "igdb_client_id": "",
     "igdb_client_secret": "",
     "tgdb_api_key": "",
+    "tgdb_monthly_lookups": 300,
 }
 
 _universal: Optional[universal.Universal] = None
