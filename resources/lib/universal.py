@@ -80,6 +80,27 @@ def names_another_game(known_title: str, offered_title: str, licence: str) -> bo
     return False
 
 
+def file_category(category: Any, filename: str) -> str:
+    """The category, raised to what the file's own tags say it is.
+
+    Only libretro's catalogue reads hack and homebrew tags, and only from its
+    own names, so a game another source identified stays "retail" although
+    its file says "[h1]", "(Aftermarket)" or "(Demo)". A tag never lowers a
+    category.
+    """
+    category = category or "retail"
+    if category != "retail" or not filename:
+        return category
+    tags = namer.parse(filename)
+    if tags["hack"]:
+        return "hack"
+    if tags["licence"] in ("aftermarket", "homebrew"):
+        return "homebrew"
+    if tags["devstatus"] in ("demo", "sample"):
+        return "demo"
+    return category
+
+
 def tidy_genres(settings: Dict[str, Any]) -> bool:
     return str(settings.get("tidy_genres", "true")).lower() not in ("false", "0")
 
@@ -253,6 +274,7 @@ class Universal:
                 extra = self._lookup(provider, refined, details)
                 if extra:
                     merge(details, extra, DETAIL_FIELDS)
+        details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
             details["genres"] = genres.normalise(details["genres"])
         return details

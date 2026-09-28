@@ -38,6 +38,7 @@ LICENCE = [
     (re.compile(r"^pirate$", re.I), "pirate"),
     (re.compile(r"^aftermarket$", re.I), "aftermarket"),
     (re.compile(r"^homebrew$", re.I), "homebrew"),
+    (re.compile(r"^pd$", re.I), "homebrew"),
 ]
 REV = re.compile(r"^(rev|revision|version|v)\.? ?([0-9][0-9a-z.]*|[a-z])$", re.I)
 ALT = re.compile(r"^alt( ?\d+)?$", re.I)
@@ -86,10 +87,14 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
             out["verified"] = True
         elif re.match(r"^b\d*$", tl):
             out["bad"] = True
-        elif re.match(r"^(h|f|o|p|t)\d*.*$", tl) and not tl.startswith("t-") and not tl.startswith("t+"):
-            if tl[0] == "h":
-                out["hack"] = True
-            elif tl[0] == "p":
+        # A game made from another. "[h1]" or "[h Vimm]" alone is a modified dump
+        # of the game itself - a crack intro, a header or title fix.
+        elif tl == "hack" or tl.startswith("h of "):
+            out["hack"] = True
+        # GoodTools and TOSEC write these in lower case, where "[HD]" is a hard
+        # disk version
+        elif re.match(r"^[hfopt](\d|[A-Z]|\s|$)", t) and not tl.startswith("t-") and not tl.startswith("t+"):
+            if tl[0] == "p":
                 out["licence"] = "pirate"
             elif tl[0] == "t":
                 out["unknown"].append(t)
@@ -136,7 +141,9 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
             continue
         for rx, val in LICENCE:
             if rx.match(t):
-                out["licence"] = val
+                # "(Aftermarket) (Unl)": the more particular tag is the one kept
+                if out["licence"] not in ("aftermarket", "homebrew"):
+                    out["licence"] = val
                 hit = True
                 break
         if hit:
