@@ -45,6 +45,8 @@ DISC = re.compile(r"^(disc|disk|side|tape|cd|cart|part) ?([0-9a-z]+)( of (\d+))?
 TOSEC_YEAR = re.compile(r"^(19|20)\d\d(-\d\d(-\d\d)?)?$|^(19|20)[x?][x?]$|^(19|20)\d[x?]$")
 BRACKET_TAGS = re.compile(r"\[([^\]]*)\]")
 PAREN_TAGS = re.compile(r"\(([^()]*)\)")
+# How to boot it, not what it is: "{V1 mode}", "{4MHz}", "{hold @+GRPH}"
+BRACE_TAGS = re.compile(r"\{([^}]*)\}")
 EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,4}$")
 LEADING_NUMBER = re.compile(r"^0\d{2,4}\s+-?\s*")
 ARTICLE = re.compile(r"^([^-]*?), (The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las)((?: - .*)?)$", re.I)
@@ -100,6 +102,8 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
         else:
             out["unknown"].append(t)
     name = BRACKET_TAGS.sub("", name)
+    out["unknown"].extend(t.strip() for t in BRACE_TAGS.findall(name))
+    name = BRACE_TAGS.sub("", name)
 
     for tag in PAREN_TAGS.findall(name):
         t = tag.strip()

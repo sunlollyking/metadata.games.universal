@@ -47,6 +47,15 @@ class AlternateTitleTest(unittest.TestCase):
         self.assertEqual([c["title"] for c in cat.find({"title": "Ganryu"})],
                          ["Ganryu / Musashi Ganryuki"])
 
+    def test_a_boot_hint_in_braces_is_not_part_of_the_title(self):
+        # PC-88 sets say how to start the game: "{V1 mode}", "{4MHz}"
+        cat = self.catalogue("Dig Dug", "Tropical Boy")
+        self.assertEqual([c["title"] for c in cat.find({"filename": "Dig Dug {V1 mode}.cmt"})],
+                         ["Dig Dug"])
+        self.assertEqual(
+            [c["title"] for c in cat.find({"filename": "Tropical Boy {V1 mode, MON R GE702}.t88"})],
+            ["Tropical Boy"])
+
     def test_an_ordinary_name_is_unaffected(self):
         cat = self.catalogue("Metal Slug (NGM-201)")
         self.assertEqual([c["title"] for c in cat.find({"title": "Metal Slug"})], ["Metal Slug"])
