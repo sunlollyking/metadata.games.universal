@@ -32,6 +32,7 @@ SYMLINK_MODE = "120000"
 SYSTEM_ICON_INDEX_URL = "https://api.github.com/repos/libretro/retroarch-assets/git/trees/master?recursive=1"
 SYSTEM_ICON_URL = "https://raw.githubusercontent.com/libretro/retroarch-assets/master/{}/{}.png"
 SYSTEM_ICON_FOLDERS = ("xmb/monochrome/png", "xmb/flatui/png")
+CATALOGUE_NUMBER = re.compile(r"^(\d{3,4})\s+-?\s*(.*)$")
 NOT_SERIAL = re.compile(r"[^A-Z0-9]")
 AGE_BOARDS = (("esrb_rating", "ESRB"), ("elspa_rating", "ELSPA"), ("pegi_rating", "PEGI"),
               ("cero_rating", "CERO"), ("bbfc_rating", "BBFC"))
@@ -209,6 +210,13 @@ class Catalogue:
             if query.get("filename") else ""
         if number and key + number not in keys:
             keys.append(key + number)
+        # A set that numbers its games past 999 leaves the number in the
+        # title, "2888 Professor Layton ...". Tried only after the whole name,
+        # since "1000 Miglia" and "1080 Snowboarding" are titles.
+        numbered = CATALOGUE_NUMBER.match(title)
+        if numbered and numbered.group(2):
+            rest = namer.normalise(numbered.group(2))
+            keys += [k for k in (rest, rest + numbered.group(1)) if k and k not in keys]
 
         wanted = {r for r in query.get("regions", "").lower().split(",") if r}
         seen = set()

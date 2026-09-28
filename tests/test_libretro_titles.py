@@ -65,6 +65,21 @@ class AlternateTitleTest(unittest.TestCase):
         self.assertEqual([c["title"] for c in cat.find({"filename": "Micro Machines V3 (USA).bin"})],
                          ["Micro Machines V3"])
 
+    def test_a_set_number_past_999_is_read_past(self):
+        cat = self.catalogue("Professor Layton and the Curious Village (Europe) (En,Fr,De,Es,It)")
+        self.assertEqual(
+            [c["title"] for c in cat.find({
+                "filename": "2888 Professor Layton and the Curious Village (EU)(M5).zip",
+                "title": "2888 Professor Layton and the Curious Village"})],
+            ["Professor Layton and the Curious Village"])
+
+    def test_a_number_that_is_the_title_still_matches_whole(self):
+        cat = self.catalogue("1080 Snowboarding (Japan, USA) (En,Ja)", "Snowboarding")
+        self.assertEqual(
+            [c["title"] for c in cat.find({"filename": "1080 Snowboarding (Japan, USA) (En,Ja).z64",
+                                           "title": "1080 Snowboarding"})],
+            ["1080 Snowboarding"])
+
     def test_an_ordinary_name_is_unaffected(self):
         cat = self.catalogue("Metal Slug (NGM-201)")
         self.assertEqual([c["title"] for c in cat.find({"title": "Metal Slug"})], ["Metal Slug"])
