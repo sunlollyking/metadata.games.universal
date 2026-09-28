@@ -10,6 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .budget import Budget
+from . import genres
 from . import namer
 from .providers import Log, OnlineProvider, Provider, Request
 
@@ -248,6 +249,8 @@ class Universal:
                 extra = self._lookup(provider, refined, details)
                 if extra:
                     merge(details, extra, DETAIL_FIELDS)
+        if details.get("genres"):
+            details["genres"] = genres.normalise(details["genres"])
         return details
 
     @staticmethod

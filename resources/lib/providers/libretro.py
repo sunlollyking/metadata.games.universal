@@ -16,6 +16,7 @@ from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional
 
 from .. import namer
+from ..genres import split as split_genres
 from .. import rdb
 from . import Provider, Request
 
@@ -31,7 +32,6 @@ SYMLINK_MODE = "120000"
 SYSTEM_ICON_INDEX_URL = "https://api.github.com/repos/libretro/retroarch-assets/git/trees/master?recursive=1"
 SYSTEM_ICON_URL = "https://raw.githubusercontent.com/libretro/retroarch-assets/master/{}/{}.png"
 SYSTEM_ICON_FOLDERS = ("xmb/monochrome/png", "xmb/flatui/png")
-GENRE_SPLIT = re.compile(r"\s*/\s*|,\s*")
 NOT_SERIAL = re.compile(r"[^A-Z0-9]")
 AGE_BOARDS = (("esrb_rating", "ESRB"), ("elspa_rating", "ELSPA"), ("pegi_rating", "PEGI"),
               ("cero_rating", "CERO"), ("bbfc_rating", "BBFC"))
@@ -263,7 +263,7 @@ class Catalogue:
             "overview": rdb.textfield(rec, "description"),
             "developers": _one(rec, "developer"),
             "publishers": _one(rec, "publisher"),
-            "genres": [g for g in GENRE_SPLIT.split(rdb.textfield(rec, "genre")) if g],
+            "genres": split_genres(rdb.textfield(rec, "genre"), ",/"),
             "collections": _one(rec, "franchise"),
             "category": category(name, tags),
             "ageratings": [{"board": board, "value": rdb.textfield(rec, field), "descriptors": ""}

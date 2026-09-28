@@ -28,6 +28,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from .. import namer
+from ..genres import split as split_genres
 from .. import net
 from . import OnlineProvider, Request
 
@@ -49,7 +50,6 @@ MD5_CONSOLES = frozenset((
 ))
 ART = (("boxfront", "ImageBoxArt"), ("titlescreen", "ImageTitle"), ("screenshot", "ImageIngame"),
        ("icon", "ImageIcon"))
-GENRE_SPLIT = re.compile(r"\s*/\s*|,\s*")
 #: The service files test carts, BIOS images and multicart menus under a set
 #: whose title begins with this. They are not games and have nothing to say.
 NOT_A_GAME = "zzz(notgame)"
@@ -160,7 +160,7 @@ class RetroAchievementsProvider(OnlineProvider):
             "title": set_title(game["Title"]),
             "developers": _one(game.get("Developer")),
             "publishers": _one(game.get("Publisher")),
-            "genres": [g for g in GENRE_SPLIT.split(str(game.get("Genre") or "")) if g],
+            "genres": split_genres(str(game.get("Genre") or ""), ",/"),
             "uniqueids": {self.name: str(game.get("ID") or candidate_id)},
             "art": {},
             "achievements": achievements(game),

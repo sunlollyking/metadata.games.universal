@@ -31,6 +31,7 @@ import zipfile
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from .. import namer
+from ..genres import split as split_genres
 from . import Provider, Request
 
 METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
@@ -67,7 +68,6 @@ ART = (
 )
 ART_RANK = {name: rank for rank, (name, _) in enumerate(ART)}
 ART_TYPE = dict(ART)
-GENRE_SPLIT = re.compile(r"\s*;\s*|\s*,\s*")
 YEAR = re.compile(r"^(\d{4})")
 Log = Callable[[str, bool], None]
 
@@ -322,7 +322,7 @@ class LaunchBoxProvider(Provider):
             out["developers"] = [row["developer"]]
         if row["publisher"]:
             out["publishers"] = [row["publisher"]]
-        genres = [g for g in GENRE_SPLIT.split(row["genres"] or "") if g]
+        genres = split_genres(row["genres"] or "", ";,")
         if genres:
             out["genres"] = genres
         year = year_of(row["released"])
