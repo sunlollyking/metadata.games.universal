@@ -80,6 +80,10 @@ def names_another_game(known_title: str, offered_title: str, licence: str) -> bo
     return False
 
 
+def tidy_genres(settings: Dict[str, Any]) -> bool:
+    return str(settings.get("tidy_genres", "true")).lower() not in ("false", "0")
+
+
 def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) -> None:
     """Copy into base the listed fields it lacks, new uniqueids keys and missing art types."""
     for field in fields:
@@ -249,7 +253,7 @@ class Universal:
                 extra = self._lookup(provider, refined, details)
                 if extra:
                     merge(details, extra, DETAIL_FIELDS)
-        if details.get("genres"):
+        if details.get("genres") and tidy_genres(request.settings):
             details["genres"] = genres.normalise(details["genres"])
         return details
 

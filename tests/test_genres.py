@@ -7,6 +7,7 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(TESTS_DIR))
 
 from resources.lib import genres  # noqa: E402
+from resources.lib.universal import tidy_genres  # noqa: E402
 
 
 class GenreTest(unittest.TestCase):
@@ -40,6 +41,11 @@ class GenreTest(unittest.TestCase):
     def test_every_clean_name_stays_as_it_is(self):
         for name in genres.KNOWN:
             self.assertEqual(genres.normalise([name]), [name], name)
+
+    def test_tidying_is_on_unless_turned_off(self):
+        self.assertTrue(tidy_genres({}))
+        self.assertTrue(tidy_genres({"tidy_genres": "true"}))
+        self.assertFalse(tidy_genres({"tidy_genres": "false"}))
 
     def test_an_unknown_genre_is_kept_as_written(self):
         self.assertEqual(genres.normalise(["Kaiju Wrangling"]), ["Kaiju Wrangling"])

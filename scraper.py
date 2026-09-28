@@ -29,6 +29,7 @@ DEFAULTS: Dict[str, Any] = {
     "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault",
     "cache_days": 30,
     "download": True,
+    "tidy_genres": True,
     "ra_username": "",
     "ra_api_key": "",
     "ss_devid": "",

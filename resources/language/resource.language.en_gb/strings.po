@@ -128,3 +128,10 @@ msgctxt "#30046"
 msgid "LaunchBox publishes its whole database as one file rather than a service you ask game by game. Turning this on downloads about a hundred megabytes once a month and answers every game from it offline afterwards. The catalogue is written by its users, so a picture may be a scan, a reconstruction or fan art; real scans are preferred where a game has one."
 msgstr ""
 
+msgctxt "#30047"
+msgid "Tidy genre names"
+msgstr ""
+
+msgctxt "#30048"
+msgid "The catalogues spell one genre many ways - \"RPG\", \"Role Playing Game\", \"Role-playing (RPG)\" - and each spelling would otherwise be its own genre in the library. With this on, every genre is given one name, sports of every kind are filed under Sports, and labels that say nothing about the game, such as \"Various\", are left out. Turn it off to keep each catalogue's own names."
+msgstr ""

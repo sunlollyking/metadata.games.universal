@@ -13,6 +13,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="tidy_genres" type="boolean" label="30047" help="30048">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
         <setting id="download" type="boolean" label="30001" help="30002">
           <level>0</level>
           <default>true</default>

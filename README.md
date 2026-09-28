@@ -20,6 +20,21 @@ Identification is exact by design. A checksum or serial match is trusted
 outright; a name match must be exact after normalisation. Nothing is matched
 approximately, because a confidently wrong game is worse than no game.
 
+## Genres
+
+Every catalogue has its own genre list, and they disagree on spelling more
+than on substance: "RPG", "Role Playing Game" and "Role-playing (RPG)" are one
+genre in three sources. Merged naively they become three genres in the library,
+and filtering on one finds a third of the games. So every genre is given one
+name from a single table (`resources/lib/genres.py`): spellings are merged,
+every kind of sport is filed under Sports, the subgenres people browse by -
+Metroidvania, Roguelike, Point-and-Click, Real-Time Strategy - are kept, and
+labels that say nothing about the game, such as "Various" or "Other", are left
+out. A genre the table does not know is kept as the catalogue wrote it.
+
+The *Tidy genre names* setting turns this off. `tools/normalise_genres.py`
+applies the same rules to a library scraped before them.
+
 ## Sources
 
 | Source | Needs | Identifies by | Notes |
