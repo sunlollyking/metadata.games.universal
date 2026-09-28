@@ -41,6 +41,8 @@ LICENCE = [
 ]
 REV = re.compile(r"^(rev|revision|version|v)\.? ?([0-9][0-9a-z.]*|[a-z])$", re.I)
 ALT = re.compile(r"^alt( ?\d+)?$", re.I)
+# TOSEC writes the version bare after the title: "Abuse v2.9 (1990)(...)"
+BARE_VERSION = re.compile(r"\s+(v\d+(?:[._]\d+)*[a-z]?)$")
 DISC = re.compile(r"^(disc|disk|side|tape|cd|cart|part) ?([0-9a-z]+)( of (\d+))?$", re.I)
 TOSEC_YEAR = re.compile(r"^(19|20)\d\d(-\d\d(-\d\d)?)?$|^(19|20)[x?][x?]$|^(19|20)\d[x?]$")
 BRACKET_TAGS = re.compile(r"\[([^\]]*)\]")
@@ -157,6 +159,10 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
         out["unknown"].append(t)
     name = PAREN_TAGS.sub("", name)
     title = re.sub(r"\s+", " ", name).strip(" -_")
+    version = BARE_VERSION.search(title)
+    if version:
+        out["revision"] = out["revision"] or version.group(1)
+        title = title[:version.start()].strip(" -_")
     out["title"] = title
     out["display"] = display_title(title)
     return out

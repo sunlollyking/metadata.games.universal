@@ -56,6 +56,15 @@ class AlternateTitleTest(unittest.TestCase):
             [c["title"] for c in cat.find({"filename": "Tropical Boy {V1 mode, MON R GE702}.t88"})],
             ["Tropical Boy"])
 
+    def test_a_tosec_version_after_the_title_is_not_part_of_it(self):
+        cat = self.catalogue("Field of Fire", "Micro Machines V3")
+        self.assertEqual(
+            [c["title"] for c in cat.find({"filename": "Field of Fire v1.00 (1984)(SSI).atr"})],
+            ["Field of Fire"])
+        # A capital V is part of the name, not a version
+        self.assertEqual([c["title"] for c in cat.find({"filename": "Micro Machines V3 (USA).bin"})],
+                         ["Micro Machines V3"])
+
     def test_an_ordinary_name_is_unaffected(self):
         cat = self.catalogue("Metal Slug (NGM-201)")
         self.assertEqual([c["title"] for c in cat.find({"title": "Metal Slug"})], ["Metal Slug"])
