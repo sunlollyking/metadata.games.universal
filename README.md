@@ -73,6 +73,27 @@ source asks not to be called, the refusal is written down rather than held in
 memory, because every scrape is its own process — otherwise the source would be
 asked, refused and logged again for every remaining game in the scan.
 
+## Arcade sets
+
+An arcade zip is a set of chip dumps, and an emulator finds it by the set's
+short name (`mslug.zip`), which says nothing a title search can use. So arcade
+zips are identified by what is inside them: Kodi sends the name, size and CRC
+of every file in the zip, read from the zip's own directory, and they are
+matched against the romset list of each installed arcade emulator (FinalBurn
+Neo, MAME 2003-Plus, MAME 2010, MAME 2000). A renamed zip is still found.
+
+The answer names the set, and every installed emulator that holds exactly that
+set together with the name that emulator knows it by, since the lists do not
+always agree. Regional and revised clones of a game become releases of it; a
+clone with a name of its own stays a game of its own. BIOS sets are filed as
+BIOS, bootlegs and hacks as hacks, and casino, fruit and mechanical machines as
+not games, using LaunchBox's MAME list, which comes in the same download as its
+catalogue. That download also links each set to LaunchBox's game, for its
+description and pictures.
+
+The romset lists are fetched from the emulators' own repositories, only for
+the emulators that are installed, and refreshed monthly.
+
 ## Settings
 
 Provider order, the cache lifetime and each source's credentials live in the

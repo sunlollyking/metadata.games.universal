@@ -140,7 +140,9 @@ def is_just_the_title(overview: Any, title: str) -> bool:
     if not text or not title:
         return False
     bare = namer.parse(text, strip_extension=False).get("title") or text
-    return namer.normalise(bare) == namer.normalise(title)
+    # Arcade names give a game twice, "Art of Fighting 2 / Ryuuko no Ken 2"
+    names = [bare] + [part for part in bare.split(" / ") if part.strip()]
+    return any(namer.normalise(name) == namer.normalise(title) for name in names)
 
 
 def provider_order(settings: Dict[str, Any]) -> List[str]:
@@ -237,6 +239,13 @@ class Universal:
                 self.log("{} could not prepare for the batch: {}".format(provider.name, err), True)
 
     def find(self, request: Request) -> List[dict]:
+        # A zip's contents identify an arcade set whatever the order says: it
+        # is Kodi's own reading of the file, as a hash is, not a catalogue
+        arcade = self.providers.get("arcade")
+        if arcade is not None and request.query.get("members"):
+            candidates = self._ask(arcade, "find", request) or []
+            if candidates:
+                return [self._namespaced(arcade, c, False, request) for c in candidates]
         named: List[dict] = []
         available = self.ordered(request.settings, request.bulk)
         # With one provider there is nothing to merge, so a provider whose
@@ -270,9 +279,11 @@ class Universal:
         # Taxi", that is what the rest can find.
         refined = self._refine(request, details)
         for provider in self.ordered(request.settings, request.bulk):
-            if provider is not primary:
+            if provider is not primary and provider.name != "arcade":
                 extra = self._lookup(provider, refined, details)
                 if extra:
+                    if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
+                        extra.pop("overview", None)
                     merge(details, extra, DETAIL_FIELDS)
         details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
@@ -283,10 +294,14 @@ class Universal:
     def _refine(request: Request, details: Dict[str, Any]) -> Request:
         """The same request, asking about the title the first provider settled on."""
         title = (details.get("title") or "").strip()
-        if not title or title == request.get("title"):
+        romset = str(details.get("romset") or "")
+        if (not title or title == request.get("title")) and not romset:
             return request
         query = dict(request.query)
-        query["title"] = title
+        if title:
+            query["title"] = title
+        if romset:
+            query["romset"] = romset
         refined = Request(query, request.settings, request.bulk)
         return refined
 

@@ -256,3 +256,34 @@ class ScraperTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BatchQueryTest(unittest.TestCase):
+    """What a batch carries reaches the providers as a URL would carry it."""
+
+    def test_a_list_in_a_batch_arrives_as_json(self):
+        import tempfile
+        members = [["074-p1.p1", 2097152, "62369553"], ["074-c1.c1", 2097152, "a0b39344"]]
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"version": 1, "queries": [{"filename": "aodk.zip", "members": members}]}, f)
+            batch = f.name
+        seen = []
+
+        class Engine:
+            def prefetch(self, requests):
+                pass
+
+            def begin_batch(self):
+                pass
+
+            def find(self, request):
+                seen.append(request.query)
+                return []
+
+        try:
+            with mock.patch.object(scraper, "scraper", return_value=Engine()):
+                run("findmany", "neogeo", {}, batch=batch)
+        finally:
+            os.remove(batch)
+        self.assertEqual(json.loads(seen[0]["members"]), members)
+        self.assertEqual(seen[0]["filename"], "aodk.zip")

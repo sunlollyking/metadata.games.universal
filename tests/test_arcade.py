@@ -1,0 +1,209 @@
+"""Arcade sets identified by the CRCs inside the zip, against small romset lists."""
+import json
+import os
+import shutil
+import tempfile
+import unittest
+import zipfile
+
+from resources.lib.providers import Request
+from resources.lib.providers import arcade, launchbox
+from resources.lib.universal import Universal
+
+FBNEO = """<?xml version="1.0"?>
+<datafile>
+  <game name="neogeo" isbios="yes"><description>Neo Geo</description>
+    <rom name="sp-s2.sp1" size="131072" crc="9036d879"/></game>
+  <game name="aodk" romof="neogeo"><description>Aggressors of Dark Kombat / Tsuukai GANGAN Koushinkyoku (ADM-008 ~ ADH-008)</description>
+    <year>1994</year><manufacturer>ADK / SNK</manufacturer>
+    <rom name="074-p1.p1" size="2097152" crc="62369553"/>
+    <rom name="074-c1.c1" size="2097152" crc="a0b39344"/>
+    <rom name="sp-s2.sp1" merge="sp-s2.sp1" size="131072" crc="9036d879"/></game>
+  <game name="kof95" romof="neogeo"><description>The King of Fighters '95 (NGM-084)</description>
+    <year>1995</year><manufacturer>SNK</manufacturer>
+    <rom name="084-p1.p1" size="2097152" crc="2cba2716"/>
+    <rom name="084-c1.c1" size="4194304" crc="fe087e32"/></game>
+  <game name="kof95h" cloneof="kof95" romof="kof95"><description>The King of Fighters '95 (NGH-084)</description>
+    <year>1995</year><manufacturer>SNK</manufacturer>
+    <rom name="084-pg1.p1" size="2097152" crc="5e54cf95"/>
+    <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
+  <game name="kof96bl" cloneof="kof95" romof="kof95"><description>The King of Fighters '95 (bootleg)</description>
+    <rom name="bl-p1.p1" size="2097152" crc="11111111"/>
+    <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
+  <game name="kof95rv" cloneof="kof95" romof="kof95"><description>Kings Revenge (NGM-085)</description>
+    <rom name="rv-p1.p1" size="2097152" crc="33333333"/>
+    <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
+  <game name="slots"><description>Lucky Slots (Japan)</description>
+    <rom name="s.bin" size="1024" crc="22222222"/></game>
+</datafile>
+"""
+
+# The same Aggressors set under another emulator's name for it
+MAME2003 = """<?xml version="1.0"?>
+<mame>
+  <game name="aodkx" sourcefile="neogeo.c"><description>Aggressors of Dark Kombat</description>
+    <year>1994</year><manufacturer>ADK</manufacturer>
+    <rom name="074-p1.p1" size="2097152" crc="62369553"/>
+    <rom name="074-c1.c1" size="2097152" crc="a0b39344"/>
+    <rom name="sp-s2.sp1" merge="sp-s2.sp1" size="131072" crc="9036d879"/>
+    <input players="2"/></game>
+</mame>
+"""
+
+DATS = {"fbneo": FBNEO, "mame2003plus": MAME2003}
+
+AODK = [["074-p1.p1", 2097152, "62369553"], ["074-c1.c1", 2097152, "a0b39344"]]
+
+
+def request(members=None, filename="aggressorsofdarkkombat.zip", **extra):
+    query = {"filename": filename, "title": "aggressorsofdarkkombat",
+             "platformids": json.dumps({"launchbox": "SNK Neo Geo"})}
+    if members is not None:
+        query["members"] = json.dumps(members)
+    query.update(extra)
+    return Request(query, {"provider_order": "launchbox"})
+
+
+def launchbox_zip(path):
+    metadata = """<?xml version="1.0"?><LaunchBox>
+      <Game><Name>Aggressors of Dark Kombat</Name><DatabaseID>77</DatabaseID>
+        <Platform>Arcade</Platform><Overview>A brawler.</Overview><Genres>Fighting</Genres></Game>
+    </LaunchBox>"""
+    mame = """<?xml version="1.0"?><LaunchBox>
+      <MameFile><FileName>aodk</FileName><Name>Aggressors of Dark Kombat</Name>
+        <Genre>Fighter / Versus</Genre><Source>neogeo/neogeo.cpp</Source></MameFile>
+      <MameFile><FileName>slots</FileName><Name>Lucky Slots</Name><IsCasino>true</IsCasino></MameFile>
+      <MameFile><FileName>kof96bl</FileName><Name>KOF bootleg</Name><IsBootleg>true</IsBootleg></MameFile>
+    </LaunchBox>"""
+    files = """<?xml version="1.0"?><LaunchBox>
+      <File><Platform>Arcade</Platform><FileName>aodk</FileName>
+        <GameName>Aggressors of Dark Kombat</GameName></File>
+    </LaunchBox>"""
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("Metadata.xml", metadata)
+        z.writestr("Mame.xml", mame)
+        z.writestr("Files.xml", files)
+
+
+class ArcadeTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.logged = []
+        log = lambda message, notable: self.logged.append(message)  # noqa: E731
+
+        def fetch(url, target):
+            for name, dat in DATS.items():
+                if name in url.replace("-", "").replace("%20", "").lower() or (
+                        name == "mame2003plus" and "mame2003-plus" in url):
+                    with open(target, "w") as f:
+                        f.write(dat)
+                    return
+            raise OSError("no fixture for " + url)
+
+        self.launchbox = launchbox.LaunchBoxProvider(log, self.dir)
+        self.launchbox.index._download = lambda target: launchbox_zip(target)
+        self.launchbox.prefetch([])
+        self.provider = arcade.ArcadeProvider(
+            log, self.dir, installed=lambda addon: addon in (
+                "game.libretro.fbneo", "game.libretro.mame2003_plus"), fetch=fetch)
+
+    def tearDown(self):
+        self.provider.close()
+        self.launchbox.index.close()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_a_renamed_zip_is_known_by_its_contents(self):
+        found = self.provider.find(request(AODK))
+        self.assertEqual(found[0]["id"], "aodk")
+        self.assertEqual(found[0]["title"], "Aggressors of Dark Kombat")
+        self.assertEqual(found[0]["matchedby"], "hash")
+
+    def test_every_emulator_holding_the_set_is_named_with_its_own_name_for_it(self):
+        details = self.provider.details("aodk", request(AODK))
+        self.assertEqual(details["emulators"], [
+            {"addon": "game.libretro.fbneo", "romset": "aodk", "requires": ["neogeo"]},
+            {"addon": "game.libretro.mame2003_plus", "romset": "aodkx", "requires": []}])
+        self.assertEqual(details["releases"][0]["romset"], "aodk")
+        self.assertEqual(details["originaltitle"], "Tsuukai GANGAN Koushinkyoku")
+        self.assertEqual(details["year"], 1994)
+
+    def test_only_installed_emulators_lists_are_fetched(self):
+        self.provider.identify(request(AODK))
+        self.assertEqual(sorted(self.provider.index.sources()), ["fbneo", "mame2003plus"])
+
+    def test_a_clone_is_a_release_of_its_parent(self):
+        clone = [["084-pg1.p1", 2097152, "5e54cf95"], ["084-c1.c1", 4194304, "fe087e32"]]
+        found = self.provider.find(request(clone, filename="kof95h.zip"))
+        self.assertEqual(found[0]["id"], "kof95")
+        details = self.provider.details("kof95", request(clone, filename="kof95h.zip"))
+        self.assertEqual(details["title"], "The King of Fighters '95")
+        self.assertEqual(details["releases"][0]["romset"], "kof95h")
+        self.assertEqual(details["emulators"][0]["requires"], ["kof95", "neogeo"])
+        self.assertEqual(details["releases"][0]["title"], "The King of Fighters '95 (NGH-084)")
+
+    def test_a_clone_with_a_name_of_its_own_is_its_own_game(self):
+        sequel = [["rv-p1.p1", 2097152, "33333333"], ["084-c1.c1", 4194304, "fe087e32"]]
+        found = self.provider.find(request(sequel, filename="kof95rv.zip"))
+        self.assertEqual((found[0]["id"], found[0]["title"]), ("kof95rv", "Kings Revenge"))
+
+    def test_a_partial_set_is_named_but_no_emulator_is_offered(self):
+        partial = [["074-p1.p1", 2097152, "62369553"], ["074-c1.c1", 2097152, "a0b39344"],
+                   ["extra.bin", 16, "deadbeef"]]
+        details = self.provider.details("aodk", request(partial))
+        self.assertEqual(details["title"], "Aggressors of Dark Kombat")
+        self.assertEqual(details["emulators"], [])
+
+    def test_too_little_in_common_is_no_match(self):
+        self.assertEqual(self.provider.find(request([["x", 1, "62369553"], ["y", 1, "00000001"],
+                                                     ["z", 1, "00000002"]], filename="x.zip"))[0]
+                         ["id"], "aodk")
+        stray = [["a", 1, "0000000a"], ["b", 1, "0000000b"]]
+        self.assertEqual(self.provider.find(request(stray, filename="stray.zip")), [])
+
+    def test_no_members_asks_nothing(self):
+        self.assertEqual(self.provider.find(request()), [])
+        self.assertFalse(os.path.exists(self.provider.index.path))
+
+    def test_the_bios_is_not_a_game(self):
+        bios = [["sp-s2.sp1", 131072, "9036d879"]]
+        details = self.provider.details("neogeo", request(bios, filename="neogeo.zip"))
+        self.assertEqual(details["category"], "bios")
+
+    def test_launchbox_flags_a_bootleg_and_a_fruit_machine(self):
+        bootleg = [["bl-p1.p1", 2097152, "11111111"], ["084-c1.c1", 4194304, "fe087e32"]]
+        self.assertEqual(self.provider.details("kof95", request(bootleg))["category"], "hack")
+        slots = [["s.bin", 1024, "22222222"]]
+        self.assertEqual(self.provider.details("slots", request(slots))["category"], "nongame")
+
+    def test_the_board_and_genre_come_from_launchbox(self):
+        details = self.provider.details("aodk", request(AODK))
+        self.assertIn("Neo Geo MVS", details["tags"])
+        self.assertEqual(details["genres"], ["Fighter"])
+
+    def test_launchbox_finds_the_game_by_its_romset(self):
+        found = self.launchbox.find(request(romset="aodk"))
+        self.assertEqual([(c["id"], c["matchedby"]) for c in found], [("77", "serial")])
+
+    def test_the_universal_scraper_asks_arcade_first_and_launchbox_by_romset(self):
+        engine = Universal([self.launchbox, self.provider], lambda m, n: None, self.dir)
+        found = engine.find(request(AODK))
+        self.assertEqual(found[0]["id"], "arcade:aodk")
+        details = engine.details("arcade:aodk", request(AODK))
+        self.assertEqual(details["overview"], "A brawler.")
+        self.assertEqual(details["uniqueids"], {"arcade": "aodk", "launchbox": "77"})
+
+
+class TitleTest(unittest.TestCase):
+    def test_clean_title(self):
+        self.assertEqual(arcade.clean_title("Street Fighter II: The World Warrior (World 910522)"),
+                         ("Street Fighter II: The World Warrior", ""))
+        self.assertEqual(arcade.clean_title("Blue's Journey / Raguy (ALM-001 ~ ALH-001)"),
+                         ("Blue's Journey", "Raguy"))
+
+    def test_regions(self):
+        self.assertEqual(arcade.regions_of("Street Fighter II (USA 910522)"), ["USA"])
+        self.assertEqual(arcade.regions_of("Final Fight (World, set 1)"), ["World"])
+
+
+if __name__ == "__main__":
+    unittest.main()

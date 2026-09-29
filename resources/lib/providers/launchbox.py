@@ -33,11 +33,18 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from .. import namer
 from ..genres import split as split_genres
 from . import Provider, Request
+from .arcade import clean_title
 
 METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
 IMAGE_URL = "https://images.launchbox-app.com/{}"
 USER_AGENT = "Kodi metadata.games.universal"
 ARCHIVE_MEMBER = "Metadata.xml"
+MAME_MEMBER = "Mame.xml"
+FILES_MEMBER = "Files.xml"
+#: The platform LaunchBox files every arcade set under, the Neo Geo's included
+ARCADE_PLATFORM = "arcade"
+MAME_FLAGS = ("IsBootleg", "IsHack", "IsPrototype", "IsMechanical", "IsCasino", "IsFruit",
+              "IsMahjong", "IsQuiz", "IsMature", "IsNonArcade")
 INDEX_NAME = "launchbox.sqlite"
 DOWNLOAD_TIMEOUT = 600
 #: How long an index is used before the catalogue is fetched again
@@ -78,6 +85,12 @@ CREATE TABLE game (id INTEGER PRIMARY KEY, name TEXT, platform TEXT, overview TE
                    votes INTEGER, wikipedia TEXT, kind TEXT);
 CREATE TABLE name_key (platform TEXT, key TEXT, id INTEGER);
 CREATE TABLE image (id INTEGER, rank INTEGER, kind TEXT, region TEXT, filename TEXT);
+CREATE TABLE mame (filename TEXT PRIMARY KEY, name TEXT, publisher TEXT, year TEXT,
+                   genre TEXT, playmode TEXT, source TEXT, status TEXT, bootleg INTEGER,
+                   hack INTEGER, prototype INTEGER, mechanical INTEGER, casino INTEGER,
+                   fruit INTEGER, mahjong INTEGER, quiz INTEGER, mature INTEGER,
+                   nonarcade INTEGER);
+CREATE TABLE arcade_file (filename TEXT PRIMARY KEY, gamename TEXT);
 """
 INDEXES = """
 CREATE INDEX ix_name_key ON name_key (platform, key);
@@ -123,7 +136,15 @@ class Index:
             return float("inf")
 
     def ready(self, max_age_days: float) -> bool:
-        return self.age_days() <= max_age_days
+        return self.age_days() <= max_age_days and self.has_table("mame")
+
+    def has_table(self, name: str) -> bool:
+        """Whether the index has a table, so one built before it existed is rebuilt."""
+        db = self.connect()
+        if db is None:
+            return False
+        return db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+                          (name,)).fetchone() is not None
 
     def connect(self) -> Optional[sqlite3.Connection]:
         if self._db is None:
@@ -189,6 +210,17 @@ class Index:
                         db.executemany("INSERT INTO name_key VALUES (?,?,?)", rows)
                     else:
                         db.executemany("INSERT INTO image VALUES (?,?,?,?,?)", rows)
+            # The MAME list and the file list are what let an arcade set,
+            # known only by its short name, be found here at all
+            names = set(z.namelist())
+            if MAME_MEMBER in names:
+                with z.open(MAME_MEMBER) as xml:
+                    db.executemany("INSERT OR REPLACE INTO mame VALUES "
+                                   "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", _read_mame(xml))
+            if FILES_MEMBER in names:
+                with z.open(FILES_MEMBER) as xml:
+                    db.executemany("INSERT OR REPLACE INTO arcade_file VALUES (?,?)",
+                                   _read_arcade_files(xml))
         db.executescript(INDEXES)
         db.commit()
         db.close()
@@ -265,6 +297,33 @@ def _read(stream: Any) -> Iterable[Tuple[str, List[tuple]]]:
     yield "image", images
 
 
+def _read_mame(stream: Any) -> Iterable[tuple]:
+    for _, el in ET.iterparse(stream, events=("end",)):
+        if el.tag != "MameFile":
+            continue
+        filename = (el.findtext("FileName") or "").strip()
+        if filename:
+            yield ((filename, (el.findtext("Name") or "").strip(),
+                    (el.findtext("Publisher") or "").strip(), (el.findtext("Year") or "").strip(),
+                    (el.findtext("Genre") or "").strip(), (el.findtext("PlayMode") or "").strip(),
+                    (el.findtext("Source") or "").strip(), (el.findtext("Status") or "").strip())
+                   + tuple(1 if (el.findtext(flag) or "").lower() == "true" else 0
+                           for flag in MAME_FLAGS))
+        el.clear()
+
+
+def _read_arcade_files(stream: Any) -> Iterable[tuple]:
+    for _, el in ET.iterparse(stream, events=("end",)):
+        if el.tag != "File":
+            continue
+        if platform_key(el.findtext("Platform")) == ARCADE_PLATFORM:
+            filename = (el.findtext("FileName") or "").strip()
+            game = (el.findtext("GameName") or "").strip()
+            if filename and game:
+                yield (filename, game)
+        el.clear()
+
+
 class LaunchBoxProvider(Provider):
     name = "launchbox"
     #: The index is local, so describing a game costs nothing beyond finding it
@@ -286,6 +345,9 @@ class LaunchBoxProvider(Provider):
         db = self._ensure()
         if db is None:
             return []
+        by_romset = self._find_romset(db, request.get("romset"))
+        if by_romset:
+            return by_romset
         platform = platform_key(request.platform_id(self.name))
         key = namer.normalise(request.title())
         if not platform or not key:
@@ -302,6 +364,37 @@ class LaunchBoxProvider(Provider):
             out.append({"id": str(row["id"]), "title": row["name"], "score": 0.9,
                         "matchedby": "name"})
         return out
+
+    @staticmethod
+    def _find_romset(db: sqlite3.Connection, romset: str) -> List[dict]:
+        """The game an arcade set belongs to, by the set's short name.
+
+        Arcade games are filed under the set a service's file list gives them,
+        which names the game in full, so this is as good as a hash.
+        """
+        if not romset:
+            return []
+        try:
+            row = db.execute("SELECT gamename FROM arcade_file WHERE filename = ?",
+                             (romset,)).fetchone()
+        except sqlite3.Error:
+            return []
+        if row is None:
+            return []
+        game = db.execute("SELECT id, name FROM game WHERE platform = ? AND name = ?",
+                          (ARCADE_PLATFORM, row["gamename"])).fetchone()
+        if game is None:
+            # The file list names a set as MAME describes it, board codes and
+            # second names included; the catalogue files the game under its
+            # plain name
+            title, _ = clean_title(row["gamename"])
+            game = db.execute(
+                "SELECT g.id, g.name FROM name_key n JOIN game g ON g.id = n.id "
+                "WHERE n.platform = ? AND n.key = ?",
+                (ARCADE_PLATFORM, namer.normalise(title))).fetchone()
+        if game is None:
+            return []
+        return [{"id": str(game["id"]), "title": game["name"], "score": 1.0, "matchedby": "serial"}]
 
     def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
         db = self._ensure()

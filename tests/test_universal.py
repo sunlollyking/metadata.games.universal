@@ -302,6 +302,8 @@ class NameOnlyOverviewTest(unittest.TestCase):
     def test_an_overview_that_is_the_file_name_counts_as_nothing(self):
         self.assertTrue(universal.is_just_the_title("Panzer Dragoon (USA) (5S)", "Panzer Dragoon"))
         self.assertTrue(universal.is_just_the_title(
+            "Art of Fighting 2 / Ryuuko no Ken 2 (NGM-056)", "Art of Fighting 2"))
+        self.assertTrue(universal.is_just_the_title(
             "Time Gal & Ninja Hayate (Japan) (En,Ja) (Disc 2)", "Time Gal & Ninja Hayate"))
 
     def test_real_prose_is_kept(self):

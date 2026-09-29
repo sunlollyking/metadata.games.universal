@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
-    igdb, launchbox, libretro, regvault, retroachievements, screenscraper, thegamesdb, wikidata)
+    arcade, igdb, launchbox, libretro, regvault, retroachievements, screenscraper, thegamesdb,
+    wikidata)
 
 #: How long a batch may spend on the web before it finishes offline
 BATCH_SECONDS = 90
@@ -104,6 +105,10 @@ def scraper() -> universal.Universal:
             regvault.RegVaultProvider(log),
             launchbox.LaunchBoxProvider(log, cache_dir),
             wikidata.WikidataProvider(log, cache_dir),
+            arcade.ArcadeProvider(
+                log, cache_dir,
+                installed=lambda addon: bool(
+                    xbmc.getCondVisibility("System.HasAddon({})".format(addon)))),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir
@@ -146,7 +151,9 @@ def findmany(handle: int, query: Dict[str, str]) -> None:
     merged_queries = []
     for one in queries:
         merged = dict(shared)
-        merged.update({k: str(v) for k, v in one.items() if v not in (None, "")})
+        # Lists, such as a zip's members, stay JSON as they would in a URL
+        merged.update({k: json.dumps(v) if isinstance(v, (list, dict)) else str(v)
+                       for k, v in one.items() if v not in (None, "")})
         merged_queries.append(merged)
 
     # A source that can answer the whole folder in one query does so now
