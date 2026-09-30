@@ -74,6 +74,12 @@ def launchbox_zip(path):
         <Genre>Fighter / Versus</Genre><Source>neogeo/neogeo.cpp</Source></MameFile>
       <MameFile><FileName>slots</FileName><Name>Lucky Slots</Name><IsCasino>true</IsCasino></MameFile>
       <MameFile><FileName>kof96bl</FileName><Name>KOF bootleg</Name><IsBootleg>true</IsBootleg></MameFile>
+      <MameFile><FileName>acheart</FileName><Name>Arcana Heart</Name><Year>2005</Year>
+        <Publisher>Examu</Publisher><Genre>Fighter / 2D</Genre><Source>sega/naomi.cpp</Source></MameFile>
+      <MameFile><FileName>ac1club</FileName><Name>Club Money</Name><IsMechanical>true</IsMechanical>
+        <IsCasino>true</IsCasino></MameFile>
+      <MameFile><FileName>3cardpk</FileName><Name>3 Cards Poker</Name><Genre>Gambling / Poker</Genre></MameFile>
+      <MameFile><FileName>22vp931</FileName><Name>Philips 22VP931</Name><Genre>System / Device</Genre></MameFile>
     </LaunchBox>"""
     files = """<?xml version="1.0"?><LaunchBox>
       <File><Platform>Arcade</Platform><FileName>aodk</FileName>
@@ -146,6 +152,17 @@ class ArcadeTest(unittest.TestCase):
         found = self.provider.find(request(sequel, filename="kof95rv.zip"))
         self.assertEqual((found[0]["id"], found[0]["title"]), ("kof95rv", "Kings Revenge"))
 
+    def test_a_merged_set_is_its_parent_whatever_clones_it_carries(self):
+        merged = [["084-p1.p1", 2097152, "2cba2716"], ["084-c1.c1", 4194304, "fe087e32"],
+                  ["084-pg1.p1", 2097152, "5e54cf95"], ["rv-p1.p1", 2097152, "33333333"],
+                  ["newer-clone.p1", 2097152, "44444444"]]
+        found = self.provider.find(request(merged, filename="kof95.zip"))
+        self.assertEqual((found[0]["id"], found[0]["subtitle"]),
+                         ("kof95", "The King of Fighters '95 (NGM-084)"))
+        details = self.provider.details("kof95", request(merged, filename="kof95.zip"))
+        self.assertEqual(details["emulators"], [
+            {"addon": "game.libretro.fbneo", "romset": "kof95", "requires": ["neogeo"]}])
+
     def test_a_partial_set_is_named_but_no_emulator_is_offered(self):
         partial = [["074-p1.p1", 2097152, "62369553"], ["074-c1.c1", 2097152, "a0b39344"],
                    ["extra.bin", 16, "deadbeef"]]
@@ -159,6 +176,32 @@ class ArcadeTest(unittest.TestCase):
                          ["id"], "aodk")
         stray = [["a", 1, "0000000a"], ["b", 1, "0000000b"]]
         self.assertEqual(self.provider.find(request(stray, filename="stray.zip")), [])
+
+    def test_a_set_no_emulator_lists_is_named_from_launchbox(self):
+        newer = [["ah1.ic1", 4194304, "abcdef01"], ["ah1.ic2", 4194304, "abcdef02"]]
+        found = self.provider.find(request(newer, filename="acheart.zip"))
+        self.assertEqual([(c["id"], c["title"], c["matchedby"]) for c in found],
+                         [("acheart", "Arcana Heart", "filename")])
+        details = self.provider.details("acheart", request(newer, filename="acheart.zip"))
+        self.assertEqual((details["year"], details["genres"], details["category"], details["emulators"]),
+                         (2005, ["Fighter"], "retail", []))
+        self.assertEqual(details["tags"], ["Sega Naomi"])
+
+    def test_a_fruit_machine_or_a_device_is_not_filed_as_a_game(self):
+        chips = [["a", 1, "abcdef03"], ["b", 1, "abcdef04"]]
+        self.assertEqual(self.provider.details("ac1club", request(chips, filename="ac1club.zip"))
+                         ["category"], "nongame")
+        self.assertEqual(self.provider.details("3cardpk", request(chips, filename="3cardpk.zip"))
+                         ["category"], "nongame")
+        self.assertEqual(self.provider.details("22vp931", request(chips, filename="22vp931.zip"))
+                         ["category"], "bios")
+
+    def test_a_one_chip_zip_on_the_arcade_platform_is_a_set(self):
+        arcade_platform = json.dumps({"launchbox": "arcade"})
+        single = request(filename="slots.zip", crc32="22222222", platformids=arcade_platform)
+        self.assertEqual([c["id"] for c in self.provider.find(single)], ["slots"])
+        elsewhere = request(filename="slots.zip", crc32="22222222")
+        self.assertEqual(self.provider.find(elsewhere), [])
 
     def test_no_members_asks_nothing(self):
         self.assertEqual(self.provider.find(request()), [])

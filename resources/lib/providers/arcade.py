@@ -90,7 +90,10 @@ CREATE TABLE romset (source TEXT, name TEXT, description TEXT, year TEXT,
 CREATE TABLE rom (source TEXT, name TEXT, crc TEXT, merged INTEGER);
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 """
-INDEXES = "CREATE INDEX ix_rom_crc ON rom (crc);"
+INDEXES = """
+CREATE INDEX IF NOT EXISTS ix_rom_crc ON rom (crc);
+CREATE INDEX IF NOT EXISTS ix_rom_set ON rom (source, name);
+"""
 
 
 def clean_title(description: str) -> Tuple[str, str]:
@@ -135,6 +138,14 @@ def board_of(sourcefile: str) -> str:
 def members_of(request: Request) -> List[Tuple[str, int, str]]:
     """The zip's members as Kodi sent them: name, size and CRC."""
     raw = request.query.get("members")
+    # Kodi lists a zip of one file as the file itself. On an arcade platform
+    # that is still a set, of one chip
+    if not raw and request.platform_id("launchbox").lower() == "arcade" and request.get("crc32"):
+        try:
+            size = int(request.get("size") or 0)
+        except ValueError:
+            size = 0
+        raw = [[request.get("filename"), size, request.get("crc32")]]
     if isinstance(raw, str):
         try:
             raw = json.loads(raw)
@@ -176,6 +187,7 @@ class Index:
         if self._db is None and os.path.exists(self.path):
             self._db = sqlite3.connect(self.path)
             self._db.row_factory = sqlite3.Row
+            self._db.executescript(INDEXES)
         return self._db
 
     def close(self) -> None:
@@ -260,6 +272,14 @@ class Index:
         db.executemany("INSERT INTO rom VALUES (?,?,?,?)", roms)
         db.executemany("INSERT OR REPLACE INTO romset VALUES (?,?,?,?,?,?,?,?,?,?,?)", sets)
         return count
+
+
+def _genres(flags: Optional[Dict[str, Any]]) -> Dict[str, List[str]]:
+    """A MAME genre is a category and a subcategory, "Fighter / Versus"; only
+    the category is a genre."""
+    if flags and flags.get("genre"):
+        return {"genres": [flags["genre"].split("/")[0].strip()]}
+    return {}
 
 
 def _remove(path: str) -> None:
@@ -380,17 +400,29 @@ class ArcadeProvider(Provider):
         if not scored:
             return None
         scored.sort(reverse=True)
-        _, source, name, coverage, exact = scored[0]
-        if coverage < MIN_COVERAGE:
-            return None
-        exact_sets: Dict[str, str] = {}
+        # A merged set is a parent's zip that also carries its clones' chips.
+        # Emulators load it by the parent's name and pass over the rest, so a
+        # zip named for a parent it holds entirely is that parent
+        stem = os.path.splitext(os.path.basename(request.get("filename")))[0].lower()
+        named: Dict[str, str] = {}
+        for _, s, n, c, _ in scored:
+            if n == stem and c == 1.0 and s not in named and not db.execute(
+                    "SELECT cloneof FROM romset WHERE source = ? AND name = ?", (s, n)).fetchone()[0]:
+                named[s] = n
+        exact_sets = dict(named)
         for _, s, n, _, e in scored:
             if e and s not in exact_sets:
                 exact_sets[s] = n
         ordered = sorted(exact_sets.items(), key=lambda item: SOURCE_RANK.get(item[0], 99))
+        _, source, name, coverage, exact = scored[0]
+        if named:
+            source, name = min(named.items(), key=lambda item: SOURCE_RANK.get(item[0], 99))
+            coverage, exact = 1.0, True
+        elif coverage < MIN_COVERAGE:
+            return None
         # Described from the list the preferred emulator uses when one holds
         # the set exactly, so the name given is the one that emulator loads
-        if ordered and not exact:
+        elif ordered and not exact:
             source, name = ordered[0]
             coverage, exact = 1.0, True
         row = db.execute("SELECT * FROM romset WHERE source = ? AND name = ?", (source, name)).fetchone()
@@ -408,7 +440,11 @@ class ArcadeProvider(Provider):
     def find(self, request: Request) -> List[dict]:
         match = self.identify(request)
         if match is None:
-            return []
+            known = self._known_by_name(request)
+            if known is None:
+                return []
+            return [{"id": known["filename"], "title": known["name"], "score": 0.5,
+                     "matchedby": "filename"}]
         title, _ = clean_title(self._parent_description(match))
         return [{"id": match.parent, "title": title, "score": round(match.coverage, 3),
                  "matchedby": "hash", "subtitle": match.row["description"],
@@ -416,7 +452,12 @@ class ArcadeProvider(Provider):
 
     def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
         match = self.identify(request)
-        if match is None or match.parent != candidate_id:
+        if match is None:
+            known = self._known_by_name(request)
+            if known is None or known["filename"] != candidate_id:
+                return None
+            return self._details_by_name(known)
+        if match.parent != candidate_id:
             return None
         row = match.row
         title, other = clean_title(self._parent_description(match))
@@ -433,7 +474,8 @@ class ArcadeProvider(Provider):
         if row["players"]:
             out["players"] = {"max": int(row["players"])}
         flags = self._launchbox_flags(match.romset) or self._launchbox_flags(match.parent)
-        out["category"] = self._category(row, flags)
+        out["category"] = self._category(row["description"], bool(row["isbios"] or row["isdevice"]),
+                                         flags)
         tags = []
         board = board_of(row["sourcefile"] or (flags or {}).get("source", ""))
         if board:
@@ -443,10 +485,7 @@ class ArcadeProvider(Provider):
                 tags.append(tag)
         if tags:
             out["tags"] = tags
-        # A MAME genre is a category and a subcategory, "Fighter / Versus"; only
-        # the category is a genre
-        if flags and flags.get("genre"):
-            out["genres"] = [flags["genre"].split("/")[0].strip()]
+        out.update(_genres(flags))
         out["emulators"] = [{"addon": ADDON_OF[s], "romset": n, "requires": self._requires(s, n)}
                             for s, n in match.exact_sets if s in ADDON_OF]
         out["releases"] = [{
@@ -482,14 +521,45 @@ class ArcadeProvider(Provider):
                             (match.source, match.row["cloneof"])).fetchone() if db else None
         return parent["description"] if parent else match.row["description"]
 
+    def _known_by_name(self, request: Request) -> Optional[Dict[str, Any]]:
+        """LaunchBox's MAME entry for a zip no emulator's list holds, found by its name.
+
+        MAME knows far more than the emulators installed here: fruit machines,
+        consoles, and games newer than every list. Named, they can at least be
+        filed where they belong.
+        """
+        if not members_of(request):
+            return None
+        stem = os.path.splitext(os.path.basename(request.get("filename")))[0].lower()
+        return self._launchbox_flags(stem) if stem else None
+
+    def _details_by_name(self, known: Dict[str, Any]) -> Dict[str, Any]:
+        out: Dict[str, Any] = {"version": 1, "title": known["name"],
+                               "uniqueids": {self.name: known["filename"]},
+                               "romset": known["filename"], "emulators": [],
+                               "category": self._category(known["name"], False, known)}
+        year = (known.get("year") or "")[:4]
+        if year.isdigit():
+            out["year"] = int(year)
+        if known.get("publisher"):
+            out["publishers"] = [known["publisher"]]
+        board = board_of(known.get("source") or "")
+        if board:
+            out["tags"] = [board]
+        out.update(_genres(known))
+        out["releases"] = [{"title": known["name"], "romset": known["filename"],
+                            "status": "proto" if known.get("prototype") else "retail"}]
+        return out
+
     @staticmethod
-    def _category(row: sqlite3.Row, flags: Optional[Dict[str, Any]]) -> str:
-        if row["isbios"] or row["isdevice"]:
-            return "bios"
+    def _category(description: str, bios: bool, flags: Optional[Dict[str, Any]]) -> str:
         flags = flags or {}
-        if flags.get("mechanical") or flags.get("casino") or flags.get("fruit") or flags.get("nonarcade"):
+        if bios or (flags.get("genre") or "").startswith("System"):
+            return "bios"
+        if flags.get("mechanical") or flags.get("casino") or flags.get("fruit") or flags.get("nonarcade") \
+                or (flags.get("genre") or "").startswith("Gambling"):
             return "nongame"
-        description = row["description"].lower()
+        description = description.lower()
         if flags.get("bootleg") or flags.get("hack") or "bootleg" in description or "hack" in description:
             return "hack"
         return "retail"

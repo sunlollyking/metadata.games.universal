@@ -13,6 +13,7 @@ from .budget import Budget
 from . import genres
 from . import namer
 from .providers import Log, OnlineProvider, Provider, Request
+from .providers.arcade import members_of
 
 IDENTITY_MATCHES = ("hash", "serial")
 #: A dump the catalogue marks as one of these was made from another game. A
@@ -242,7 +243,7 @@ class Universal:
         # A zip's contents identify an arcade set whatever the order says: it
         # is Kodi's own reading of the file, as a hash is, not a catalogue
         arcade = self.providers.get("arcade")
-        if arcade is not None and request.query.get("members"):
+        if arcade is not None and members_of(request):
             candidates = self._ask(arcade, "find", request) or []
             if candidates:
                 return [self._namespaced(arcade, c, False, request) for c in candidates]
