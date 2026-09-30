@@ -94,6 +94,15 @@ EDITION_NAMES = {
     12: "Fork",
 }
 BOARDS = {1: "ESRB", 2: "PEGI", 3: "CERO", 4: "USK", 5: "GRAC", 6: "CLASS_IND", 7: "ACB"}
+#: The current API's rating_category ids, from its age_rating_categories endpoint
+RATING_CATEGORIES = {
+    1: "RP", 2: "EC", 3: "E", 4: "E10+", 5: "T", 6: "M", 7: "AO",
+    8: "3", 9: "7", 10: "12", 11: "16", 12: "18",
+    13: "A", 14: "B", 15: "C", 16: "D", 17: "Z", 18: "0", 19: "6", 20: "12", 21: "16", 22: "18",
+    23: "All", 24: "12", 25: "15", 26: "19", 27: "Testing", 28: "L", 29: "10", 30: "12", 31: "14",
+    32: "16", 33: "18", 34: "G", 35: "PG", 36: "M", 37: "MA15+", 38: "R18+", 39: "RC", 40: "18",
+}
+#: The deprecated rating enum, which numbers PEGI before ESRB
 RATINGS = {
     1: "3", 2: "7", 3: "12", 4: "16", 5: "18", 6: "RP", 7: "EC", 8: "E", 9: "E10+", 10: "T", 11: "M", 12: "AO",
     13: "A", 14: "B", 15: "C", 16: "D", 17: "Z", 18: "0", 19: "6", 20: "12", 21: "16", 22: "18",
@@ -415,9 +424,12 @@ def age_ratings(game: dict) -> List[dict]:
         if not isinstance(item, dict):
             continue
         board = BOARDS.get(item.get("organization", item.get("category")))
-        category = item.get("rating_category", item.get("rating"))
-        if board and category is not None:
-            out.append({"board": board, "value": RATINGS.get(category, str(category)), "descriptors": ""})
+        if "rating_category" in item:
+            value = RATING_CATEGORIES.get(item["rating_category"])
+        else:
+            value = RATINGS.get(item.get("rating"))
+        if board and value:
+            out.append({"board": board, "value": value, "descriptors": ""})
     return out
 
 

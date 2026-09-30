@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .budget import Budget
-from . import genres
+from . import ageratings, companies, genres
 from . import namer
 from .providers import Log, OnlineProvider, Provider, Request
 from .providers.arcade import members_of
@@ -289,6 +289,11 @@ class Universal:
         details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
             details["genres"] = genres.normalise(details["genres"])
+        if details.get("ageratings"):
+            details["ageratings"] = ageratings.normalise(details["ageratings"])
+        for role in ("publishers", "developers"):
+            if details.get(role):
+                details[role] = companies.normalise(details[role])
         return details
 
     @staticmethod
