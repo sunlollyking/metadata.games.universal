@@ -81,20 +81,42 @@ def names_another_game(known_title: str, offered_title: str, licence: str) -> bo
     return False
 
 
+def derived_version(dump: Optional[Dict[str, Any]], title: str, request: Request) -> Optional[dict]:
+    """The version a hash found, where it is made from the game it is filed under.
+
+    Catalogues file hacks, fan translations and unlicensed reissues under the
+    game they were made from: libretro's names every hack of Sonic 2 "Sonic
+    the Hedgehog 2 Rev 1 [hN]", ScreenScraper lists "Sonic Boom By Snkenjoi
+    (S2 Hack)" among Sonic 2's dumps. The game is that one; the dump is one of
+    its versions, and goes by the file's own name where that names it.
+    """
+    edition = str((dump or {}).get("edition") or "")
+    if not edition:
+        return None
+    own = namer.hack_name(str(dump.get("name") or ""), request.get("filename") or "", title)
+    version: Dict[str, Any] = {"title": own or namer.without_revision(title)}
+    if edition == "Unlicensed":
+        version["licence"] = "unlicensed"
+    else:
+        version["edition"] = edition
+    for field in ("crc32", "md5", "sha1", "serial"):
+        if request.get(field):
+            version[field] = request.get(field)
+    return version
+
+
 def file_category(category: Any, filename: str) -> str:
     """The category, raised to what the file's own tags say it is.
 
-    Only libretro's catalogue reads hack and homebrew tags, and only from its
-    own names, so a game another source identified stays "retail" although
-    its file says "[h1]", "(Aftermarket)" or "(Demo)". A tag never lowers a
-    category.
+    Only libretro's catalogue reads homebrew tags, and only from its own names,
+    so a game another source identified stays "retail" although its file says
+    "(Aftermarket)" or "(Demo)". A tag never lowers a category. A hack is a
+    version of the game it was made from, not a category of game.
     """
     category = category or "retail"
     if category != "retail" or not filename:
         return category
     tags = namer.parse(filename)
-    if tags["hack"]:
-        return "hack"
     if tags["licence"] in ("aftermarket", "homebrew"):
         return "homebrew"
     if tags["devstatus"] in ("demo", "sample"):
@@ -272,6 +294,16 @@ class Universal:
         details = primary.details(local_id, request)
         if details is None:
             return None
+        version = derived_version(details.pop("dump", None), str(details.get("title") or ""), request)
+        if version is not None:
+            # GoodTools names a hack after the revision it was made from,
+            # "Sonic the Hedgehog 2 Rev 1 [h11]"; the game is the one without it
+            if details.get("title"):
+                details["title"] = namer.without_revision(str(details["title"]))
+            same = [field for field in ("crc32", "md5") if version.get(field)]
+            details["releases"] = [version] + [
+                r for r in details.get("releases") or []
+                if not any(r.get(field) and r.get(field) == version[field] for field in same)]
         if is_just_the_title(details.get("overview"), str(details.get("title") or request.title())):
             details.pop("overview", None)
         # The others are asked about the game the first one identified, not

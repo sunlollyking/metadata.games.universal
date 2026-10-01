@@ -278,6 +278,8 @@ class Catalogue:
                            for field, board in AGE_BOARDS if rdb.textfield(rec, field)],
             "uniqueids": {"libretro": name},
             "releases": [release],
+            "dump": {"name": name, "edition": "Mod" if tags["hack"] or tags["modified"] else (
+                "Fan Translation" if tags["translation"] else "")},
             "art": art_urls(self.platform_name, name, regions[0] if regions else None,
                             self.held_pictures),
         }

@@ -76,7 +76,7 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
     out = {
         "title": None, "regions": [], "languages": [], "revision": None,
         "devstatus": "retail", "licence": "licensed", "alt": False, "bad": False,
-        "verified": False, "hack": False, "translation": None, "disc": None,
+        "verified": False, "hack": False, "modified": False, "translation": None, "disc": None,
         "discs": None, "year": None, "publisher": None, "unknown": [],
         "number": catalogue_number,
     }
@@ -94,7 +94,9 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
         # GoodTools and TOSEC write these in lower case, where "[HD]" is a hard
         # disk version
         elif re.match(r"^[hfopt](\d|[A-Z]|\s|$)", t) and not tl.startswith("t-") and not tl.startswith("t+"):
-            if tl[0] == "p":
+            if tl[0] == "h":
+                out["modified"] = True
+            elif tl[0] == "p":
                 out["licence"] = "pirate"
             elif tl[0] == "t":
                 out["unknown"].append(t)
@@ -151,7 +153,8 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
         if ALT.match(t):
             out["alt"] = True
             continue
-        if tl in ("hack", "hacked"):
+        # "(S2 Hack)": a hack, and of which game
+        if tl in ("hack", "hacked") or tl.endswith(" hack"):
             out["hack"] = True
             continue
         if TOSEC_YEAR.match(t):
@@ -222,3 +225,33 @@ def normalise(title: str) -> str:
     t = re.sub(r"\b(the|a|an)\b", " ", t)
     t = _norm_rx.sub("", t)
     return t
+
+
+# GoodTools numbers every hack of a game under the game's own name, and names
+# a hack after the revision it was made from: "Sonic the Hedgehog 2 Rev 1 [h11]"
+_NUMBERED_HACK = re.compile(r"\[h\d+[a-z]?\]", re.IGNORECASE)
+_TRAILING_REVISION = re.compile(r"\s+(?:rev\s*[a-z0-9]+|v\d+(?:\.\d+)*)$", re.IGNORECASE)
+
+
+def without_revision(title: str) -> str:
+    """A title without the revision a catalogue may end it with."""
+    return _TRAILING_REVISION.sub("", title or "")
+
+
+def hack_name(dump_name: str, filename: str, game_title: str) -> str:
+    """The name a hack of game_title goes by, or "" where it is the game itself.
+
+    A catalogue that names the dump as another work, "Mario Adventure", is
+    believed, though the file's own name for it is kept where it names that
+    work too. A numbered GoodTools hack says nothing, so only the file can name
+    it, as "Sonic 2 Delta II". A group's tag, "[h Homesoft]", is a cracked or
+    re-introduced copy of the game, whatever the file happens to be called.
+    """
+    game = normalise(without_revision(game_title))
+    dumped = parse(dump_name or "", strip_extension=False)["display"] or ""
+    own = parse(filename)["display"] if filename else ""
+    if dumped and normalise(without_revision(dumped)) != game:
+        return own if own and normalise(own) != game else dumped
+    if dump_name and _NUMBERED_HACK.search(dump_name) and own and normalise(own) != game:
+        return own
+    return ""

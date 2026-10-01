@@ -416,12 +416,13 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
         "releases": [r for r in (release(rom) for rom in jeu.findall("roms/rom")) if r],
         "art": media(medias, art_map, art_prefs),
     }
-    # Made from the game this entry describes, so the entry's name belongs to
-    # that game. The catalogue already named this dump; leave that name alone
-    # and say what the dump is instead.
-    if (edition := derived_edition(jeu)):
-        out["edition"] = edition
-        out.pop("title", None)
+    # The dump that was matched, which may be made from the game this entry
+    # describes rather than be it
+    rom = jeu.find("rom")
+    if rom is not None and field(rom, "romfilename"):
+        name = field(rom, "romfilename")
+        edition = derived_edition(jeu) or ("Mod" if namer.parse(name)["hack"] else "")
+        out["dump"] = {"name": name, "edition": edition}
 
     native = native_name(jeu)
     if native and out.get("title") and namer.normalise(native) != namer.normalise(out["title"]):

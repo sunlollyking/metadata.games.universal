@@ -1,4 +1,4 @@
-"""A file's own tags say when a game is a hack, homebrew or a demo."""
+"""A file's own tags say when a game is homebrew or a demo; a hack is a version of its game."""
 import os
 import sys
 import unittest
@@ -15,17 +15,15 @@ from resources.lib.universal import file_category  # noqa: E402
 
 class FileCategoryTest(unittest.TestCase):
     def test_tags_raise_retail(self):
-        self.assertEqual(file_category("retail", "Valis (Disk 1) [hack].d88"), "hack")
         self.assertEqual(file_category("retail", "Cool Game (PD).tap"), "homebrew")
         self.assertEqual(file_category("retail", "Zaku (USA) (Aftermarket) (Unl).zip"), "homebrew")
         self.assertEqual(file_category("retail", "Game (Europe) (Demo).iso"), "demo")
 
-    def test_a_modified_dump_is_the_game_itself(self):
+    def test_a_hack_leaves_the_game_it_was_made_from_as_it_is(self):
         for name in ("Taxman [h mod-keyset].dsk", "Madden NFL 98 (USA)[h3].bin",
-                     "Angel Dive [HD].zip", "Redux Dark Matters [HUCAST].cdi"):
+                     "Angel Dive [HD].zip", "Redux Dark Matters [HUCAST].cdi",
+                     "Valis (Disk 1) [hack].d88", "Sperm Invaders [h of Space Invaders].atr"):
             self.assertEqual(file_category("retail", name), "retail", name)
-        self.assertEqual(file_category("retail", "Sperm Invaders [h of Space Invaders].atr"),
-                         "hack")
 
     def test_era_software_stays_retail(self):
         for name in ("Pier Solar (USA) (Unl).cue", "Game (USA) (Proto).zip", "Game (USA).nes"):
