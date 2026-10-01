@@ -214,8 +214,9 @@ def region_name(code: str) -> str:
 
 
 def preference(request: Request, fallback: Sequence[str]) -> List[str]:
-    """The caller's regions as ScreenScraper's codes, then the usual fallbacks."""
-    regions = [SS_REGION_CODES.get(r.lower(), r.lower()) for r in request.regions()]
+    """The player's regions, then the dump's, as ScreenScraper's codes, then the usual fallbacks."""
+    regions = list(dict.fromkeys(SS_REGION_CODES.get(r, r)
+                                 for r in request.preferred_regions() + request.regions()))
     return regions + [r for r in fallback if r not in regions]
 
 

@@ -145,7 +145,7 @@ def findmany(handle: int, query: Dict[str, str]) -> None:
         batch = json.load(handle_file)
     queries = batch.get("queries") or []
 
-    shared = {k: v for k, v in query.items() if k in ("platform", "platformids", "settings")}
+    shared = {k: v for k, v in query.items() if k in ("platform", "platformids", "settings", "preferredregions")}
     engine = scraper()
 
     merged_queries = []

@@ -60,6 +60,10 @@ class Request:
     def regions(self) -> List[str]:
         return [r.strip() for r in self.get("regions").lower().split(",") if r.strip()]
 
+    def preferred_regions(self) -> List[str]:
+        """The player's regions, in their order, before the dump's own."""
+        return [r.strip() for r in self.get("preferredregions").lower().split(",") if r.strip()]
+
     def hashes(self) -> Dict[str, str]:
         """The hashes Kodi computed, lower case, keyed by query parameter."""
         out = {}
