@@ -22,6 +22,7 @@ default region, world, US, Europe and Japan. Media URLs carry the
 credentials ScreenScraper needs to serve them.
 """
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -365,6 +366,21 @@ def public_url(url: str) -> str:
         return url
     kept = [pair for pair in query.split("&") if pair.split("=", 1)[0] not in PLAYER_LOGIN]
     return base + ("?" + "&".join(kept) if kept else "")
+
+
+def signed_in(url: str, settings: Dict[str, Any]) -> str:
+    """A ScreenScraper media URL with the player's login put back.
+
+    Without it a picture counts against a much smaller daily allowance than
+    the player's own, and is refused once that runs out. Any other URL is
+    returned as it is.
+    """
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    user, password = settings.get("ss_user"), settings.get("ss_password")
+    if not (host == "screenscraper.fr" or host.endswith(".screenscraper.fr")) or not user or not password:
+        return url
+    base = public_url(url)
+    return base + ("&" if "?" in base else "?") + urllib.parse.urlencode({"ssid": user, "sspassword": password})
 
 
 def media(elements: Sequence[ET.Element], mapping: Dict[str, str],

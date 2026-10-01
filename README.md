@@ -35,6 +35,14 @@ out. A genre the table does not know is kept as the catalogue wrote it.
 The *Tidy genre names* setting turns this off. `tools/normalise_genres.py`
 applies the same rules to a library scraped before them.
 
+## Artwork
+
+The links this add-on hands Kodi never carry your ScreenScraper sign-in, so
+that it stays out of the library and the log. ScreenScraper serves such a link
+only while a small daily allowance lasts. Set Kodi's *Artwork folder* and Kodi
+keeps the pictures instead: this add-on fetches each one signed in, and Kodi
+files it away.
+
 ## Sources
 
 | Source | Needs | Identifies by | Notes |

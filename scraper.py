@@ -15,6 +15,7 @@ import xbmcvfs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from resources.lib import saveart as saveart_lib  # noqa: E402
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
@@ -242,8 +243,20 @@ def getprogress(handle: int, query: Dict[str, str]) -> None:
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 
+def saveart(handle: int, query: Dict[str, str]) -> None:
+    """Fetch the pictures Kodi keeps in its art folder; Kodi moves each file from here."""
+    with open(query.get("batch", ""), "r", encoding="utf-8") as handle_file:
+        urls = [u for u in json.load(handle_file).get("art") or [] if isinstance(u, str) and u]
+    folder = xbmcvfs.translatePath("special://profile/addon_data/{}/saved/".format(ADDON_ID))
+    files = saveart_lib.save(urls, folder, settings(query), log)
+    log("saveart: {} of {} picture(s)".format(len(files), len(urls)))
+    item = xbmcgui.ListItem("saved")
+    item.setProperty("gamelibrary.saved", json.dumps({"version": 1, "files": files}))
+    xbmcplugin.setResolvedUrl(handle, True, item)
+
+
 ACTIONS = {"find": find, "findmany": findmany, "getdetails": getdetails,
-           "getplatform": getplatform, "getprogress": getprogress}
+           "getplatform": getplatform, "getprogress": getprogress, "saveart": saveart}
 
 
 def main(argv) -> None:
@@ -260,7 +273,7 @@ def main(argv) -> None:
     except Exception:
         log("{} failed: {}".format(action or "request", traceback.format_exc()), True)
         if handle >= 0:
-            if action in ("getdetails", "getplatform", "getprogress"):
+            if action in ("getdetails", "getplatform", "getprogress", "saveart"):
                 xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
             else:
                 xbmcplugin.endOfDirectory(handle, succeeded=False)
