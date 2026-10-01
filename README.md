@@ -42,6 +42,7 @@ that it stays out of the library and the log. ScreenScraper serves such a link
 only while a small daily allowance lasts. Set Kodi's *Artwork folder* and Kodi
 keeps the pictures instead: this add-on fetches each one signed in, and Kodi
 files it away.
+`tools/keep_art.py` does the same for a library scraped before.
 
 ## Sources
 
