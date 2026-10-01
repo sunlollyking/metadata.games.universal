@@ -30,6 +30,9 @@ FBNEO = """<?xml version="1.0"?>
   <game name="kof96bl" cloneof="kof95" romof="kof95"><description>The King of Fighters '95 (bootleg)</description>
     <rom name="bl-p1.p1" size="2097152" crc="11111111"/>
     <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
+  <game name="kof95pl" cloneof="kof95" romof="kof95"><description>King of Fighters Plus (hack)</description>
+    <rom name="pl-p1.p1" size="2097152" crc="55555555"/>
+    <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
   <game name="kof95rv" cloneof="kof95" romof="kof95"><description>Kings Revenge (NGM-085)</description>
     <rom name="rv-p1.p1" size="2097152" crc="33333333"/>
     <rom name="084-c1.c1" merge="084-c1.c1" size="4194304" crc="fe087e32"/></game>
@@ -152,6 +155,16 @@ class ArcadeTest(unittest.TestCase):
         found = self.provider.find(request(sequel, filename="kof95rv.zip"))
         self.assertEqual((found[0]["id"], found[0]["title"]), ("kof95rv", "Kings Revenge"))
 
+    def test_a_hack_named_otherwise_is_still_a_version_of_its_game(self):
+        hack = [["pl-p1.p1", 2097152, "55555555"], ["084-c1.c1", 4194304, "fe087e32"]]
+        found = self.provider.find(request(hack, filename="kof95pl.zip"))
+        self.assertEqual(found[0]["id"], "kof95")
+        details = self.provider.details("kof95", request(hack, filename="kof95pl.zip"))
+        self.assertEqual(details["title"], "The King of Fighters '95")
+        self.assertEqual(details["category"], "retail")
+        self.assertEqual(details["releases"][0]["edition"], "Mod")
+        self.assertEqual(details["releases"][0]["title"], "King of Fighters Plus (hack)")
+
     def test_a_merged_set_is_its_parent_whatever_clones_it_carries(self):
         merged = [["084-p1.p1", 2097152, "2cba2716"], ["084-c1.c1", 4194304, "fe087e32"],
                   ["084-pg1.p1", 2097152, "5e54cf95"], ["rv-p1.p1", 2097152, "33333333"],
@@ -212,9 +225,12 @@ class ArcadeTest(unittest.TestCase):
         details = self.provider.details("neogeo", request(bios, filename="neogeo.zip"))
         self.assertEqual(details["category"], "bios")
 
-    def test_launchbox_flags_a_bootleg_and_a_fruit_machine(self):
+    def test_a_bootleg_is_a_pirate_version_of_its_game_and_a_fruit_machine_no_game(self):
         bootleg = [["bl-p1.p1", 2097152, "11111111"], ["084-c1.c1", 4194304, "fe087e32"]]
-        self.assertEqual(self.provider.details("kof95", request(bootleg))["category"], "hack")
+        details = self.provider.details("kof95", request(bootleg))
+        self.assertEqual(details["category"], "retail")
+        self.assertEqual(details["releases"][0]["licence"], "pirate")
+        self.assertEqual(details["releases"][0]["romset"], "kof96bl")
         slots = [["s.bin", 1024, "22222222"]]
         self.assertEqual(self.provider.details("slots", request(slots))["category"], "nongame")
 

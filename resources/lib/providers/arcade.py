@@ -428,8 +428,10 @@ class ArcadeProvider(Provider):
         row = db.execute("SELECT * FROM romset WHERE source = ? AND name = ?", (source, name)).fetchone()
         match = Match(source, row, coverage, exact, ordered)
         # A regional or revised set keeps the game's name; one named otherwise
-        # is a game of its own ("Breakers Revenge" is not a release of "Breakers")
-        if row["cloneof"]:
+        # is a game of its own ("Breakers Revenge" is not a release of "Breakers").
+        # A bootleg or a hack is a version of the game it was made from,
+        # whatever it calls itself.
+        if row["cloneof"] and not self._derived(row):
             parent = db.execute("SELECT description FROM romset WHERE source = ? AND name = ?",
                                 (source, row["cloneof"])).fetchone()
             if parent is not None and clean_title(parent["description"])[0].lower() != \
@@ -474,8 +476,11 @@ class ArcadeProvider(Provider):
         if row["players"]:
             out["players"] = {"max": int(row["players"])}
         flags = self._launchbox_flags(match.romset) or self._launchbox_flags(match.parent)
-        out["category"] = self._category(row["description"], bool(row["isbios"] or row["isdevice"]),
-                                         flags)
+        derived = self._derived(row) if row["cloneof"] and not match.own_game else ""
+        game = self._parent_row(match) if derived else row
+        game_flags = self._launchbox_flags(game["name"]) if derived else flags
+        out["category"] = self._category(game["description"],
+                                         bool(game["isbios"] or game["isdevice"]), game_flags)
         tags = []
         board = board_of(row["sourcefile"] or (flags or {}).get("source", ""))
         if board:
@@ -488,13 +493,34 @@ class ArcadeProvider(Provider):
         out.update(_genres(flags))
         out["emulators"] = [{"addon": ADDON_OF[s], "romset": n, "requires": self._requires(s, n)}
                             for s, n in match.exact_sets if s in ADDON_OF]
-        out["releases"] = [{
+        release = {
             "title": row["description"],
             "regions": regions_of(row["description"]),
             "romset": match.romset,
             "status": "proto" if "prototype" in row["description"].lower() else "retail",
-        }]
+        }
+        if derived == "hack":
+            release["edition"] = "Mod"
+        elif derived == "bootleg":
+            release["licence"] = "pirate"
+        out["releases"] = [release]
         return out
+
+    def _derived(self, row: sqlite3.Row) -> str:
+        """"hack" or "bootleg" where a set was made from another game, or ""."""
+        flags = self._launchbox_flags(row["name"]) or {}
+        description = (row["description"] or "").lower()
+        if flags.get("hack") or "hack" in description:
+            return "hack"
+        if flags.get("bootleg") or "bootleg" in description:
+            return "bootleg"
+        return ""
+
+    def _parent_row(self, match: Match) -> sqlite3.Row:
+        db = self.index.connect()
+        parent = db.execute("SELECT * FROM romset WHERE source = ? AND name = ?",
+                            (match.source, match.row["cloneof"])).fetchone() if db else None
+        return parent if parent is not None else match.row
 
     def _requires(self, source: str, name: str) -> List[str]:
         """The sets an emulator needs beside this one: its parent, then the BIOS.

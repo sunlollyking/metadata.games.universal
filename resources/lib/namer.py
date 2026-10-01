@@ -35,7 +35,7 @@ DEVSTATUS = [
 ]
 LICENCE = [
     (re.compile(r"^unl(icensed)?$", re.I), "unlicensed"),
-    (re.compile(r"^pirate$", re.I), "pirate"),
+    (re.compile(r"^(pirate|bootleg( of .*)?)$", re.I), "pirate"),
     (re.compile(r"^aftermarket$", re.I), "aftermarket"),
     (re.compile(r"^homebrew$", re.I), "homebrew"),
     (re.compile(r"^pd$", re.I), "homebrew"),

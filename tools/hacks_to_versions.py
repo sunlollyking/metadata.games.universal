@@ -59,9 +59,11 @@ def main(argv):
              for gid, platform, title, category, edition in db.execute(
                  "select idGame, idPlatform, title, category, edition from game")}
     versions = collections.defaultdict(list)
-    for rid, gid, title, edition in db.execute(
-            "select idRelease, idGame, title, coalesce(edition, '') from gamerelease"):
-        versions[gid].append({"id": rid, "title": title or "", "edition": edition})
+    for rid, gid, title, edition, licence in db.execute(
+            "select idRelease, idGame, title, coalesce(edition, ''), coalesce(licence, '') "
+            "from gamerelease"):
+        versions[gid].append({"id": rid, "title": title or "", "edition": edition,
+                              "licence": licence})
     files = collections.defaultdict(list)
     for rid, name in db.execute("select idRelease, strFilename from files"):
         files[rid].append(name)
@@ -72,7 +74,7 @@ def main(argv):
             by_title[(game["platform"], key(game["title"]))].append(gid)
 
     marked = renamed = moved = folded = 0
-    release_updates, game_updates, moves, drops = [], [], [], []
+    release_updates, licence_updates, game_updates, moves, drops = [], [], [], [], []
     for gid, game in games.items():
         own = versions.get(gid, [])
         parent = None
@@ -81,6 +83,10 @@ def main(argv):
             parent = matches[0] if len(matches) == 1 else None
 
         for version in own:
+            # A bootleg, as an arcade list names one, is a pirate copy
+            if version["licence"] in ("", "licensed") and \
+                    namer.parse(version["title"], strip_extension=False)["licence"] == "pirate":
+                licence_updates.append(version["id"])
             tagged = edition_of(files[version["id"]] + [version["title"]])
             edition = version["edition"] or tagged
             if not edition and (parent or (game["edition"] in DERIVED and len(own) == 1)):
@@ -113,12 +119,15 @@ def main(argv):
         with db:
             db.executemany("update gamerelease set edition = ?, title = ? where idRelease = ?",
                            release_updates)
+            db.executemany("update gamerelease set licence = 'pirate' where idRelease = ?",
+                           [(rid,) for rid in licence_updates])
             db.executemany("update game set edition = '' where idGame = ?",
                            [(gid,) for gid in game_updates])
             db.executemany("update gamerelease set idGame = ? where idGame = ?", moves)
             db.executemany("delete from game where idGame = ?", [(gid,) for gid in drops])
     verb = "" if apply else "would "
-    print(f"{verb}mark {marked} versions as hacks or fan translations, name {renamed} hacks by "
+    print(f"{verb}mark {marked} versions as hacks or fan translations and {len(licence_updates)} "
+          f"as bootlegs, name {renamed} hacks by "
           f"their own title, take the edition off {len(game_updates)} games, and fold {folded} "
           f"hack games ({moved} versions) into their game")
     return 0
