@@ -14,6 +14,10 @@ regional and revision clones of one game become releases of it.
 Names and flags that the romset lists do not carry -- whether a set is a
 bootleg, a fruit machine or a mahjong game -- come from LaunchBox's MAME list,
 which the LaunchBox provider indexes along with its main catalogue.
+
+A set that neither knows -- a plug-and-play TV game, a computer, a board -- is
+looked up last in current MAME's own list, which names every machine MAME has
+but offers no emulator to run it.
 """
 import json
 import os
@@ -22,6 +26,7 @@ import sqlite3
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -48,8 +53,19 @@ SOURCES: Tuple[Tuple[str, str, str], ...] = (
      "https://raw.githubusercontent.com/libretro/mame2000-libretro/master/metadata/"
      "MAME%200.37b5%20XML.dat"),
 )
+#: Current MAME's list of every machine, found from its latest release
+MAME = "mame"
+MAME_RELEASE = "https://api.github.com/repos/mamedev/mame/releases/latest"
+
 SOURCE_RANK = {name: rank for rank, (name, _, _) in enumerate(SOURCES)}
+SOURCE_RANK[MAME] = len(SOURCES)
 ADDON_OF = {name: addon for name, addon, _ in SOURCES}
+
+#: Raised when the index is built in a way older code cannot read
+INDEX_FORMAT = "2"
+
+#: MAME's driver folders for machines that are not arcade games
+NOT_ARCADE_FOLDERS = ("tvgames", "skeleton", "handheld", "homebrew", "pinball", "chess", "virtual")
 
 #: Below this share of a set's own chips, a zip is not called that set
 MIN_COVERAGE = 0.5
@@ -86,7 +102,8 @@ SCHEMA = """
 CREATE TABLE romset (source TEXT, name TEXT, description TEXT, year TEXT,
                      manufacturer TEXT, cloneof TEXT, romof TEXT, isbios INTEGER,
                      isdevice INTEGER, sourcefile TEXT, players INTEGER,
-                     PRIMARY KEY (source, name));
+                     ismechanical INTEGER, runnable INTEGER, softwarelist INTEGER,
+                     coins INTEGER, PRIMARY KEY (source, name));
 CREATE TABLE rom (source TEXT, name TEXT, crc TEXT, merged INTEGER);
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 """
@@ -183,6 +200,13 @@ class Index:
         row = db.execute("SELECT value FROM meta WHERE key = 'sources'").fetchone()
         return json.loads(row[0]) if row else []
 
+    def format(self) -> str:
+        db = self.connect()
+        if db is None:
+            return ""
+        row = db.execute("SELECT value FROM meta WHERE key = 'format'").fetchone()
+        return row[0] if row else ""
+
     def connect(self) -> Optional[sqlite3.Connection]:
         if self._db is None and os.path.exists(self.path):
             self._db = sqlite3.connect(self.path)
@@ -221,6 +245,7 @@ class Index:
                 built.append(name)
                 self.log("arcade: indexed {} {} sets".format(sets, name), False)
             db.execute("INSERT INTO meta VALUES ('sources', ?)", (json.dumps(built),))
+            db.execute("INSERT INTO meta VALUES ('format', ?)", (INDEX_FORMAT,))
             db.executescript(INDEXES)
             db.commit()
             db.close()
@@ -236,27 +261,42 @@ class Index:
 
     @staticmethod
     def _load(db: sqlite3.Connection, source: str, path: str) -> int:
+        # MAME publishes its list zipped, the emulators theirs as plain XML
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile(path) as archive:
+                member = next(n for n in archive.namelist() if n.lower().endswith((".xml", ".dat")))
+                with archive.open(member) as listing:
+                    return Index._read(db, source, listing)
+        with open(path, "rb") as listing:
+            return Index._read(db, source, listing)
+
+    @staticmethod
+    def _read(db: sqlite3.Connection, source: str, listing: Any) -> int:
         sets: List[tuple] = []
         roms: List[tuple] = []
         count = 0
-        for _, el in ET.iterparse(path, events=("end",)):
+        for _, el in ET.iterparse(listing, events=("end",)):
             if el.tag not in ("game", "machine"):
                 continue
             name = el.get("name") or ""
-            players = 0
+            players = coins = 0
             inputs = el.find("input")
             if inputs is not None:
                 try:
                     players = int(inputs.get("players") or 0)
+                    coins = int(inputs.get("coins") or 0)
                 except ValueError:
-                    players = 0
+                    pass
             sets.append((source, name, (el.findtext("description") or "").strip(),
                          (el.findtext("year") or "").strip(),
                          (el.findtext("manufacturer") or "").strip(),
                          el.get("cloneof") or "", el.get("romof") or "",
                          1 if el.get("isbios") == "yes" else 0,
                          1 if el.get("isdevice") == "yes" else 0,
-                         el.get("sourcefile") or "", players))
+                         el.get("sourcefile") or "", players,
+                         1 if el.get("ismechanical") == "yes" else 0,
+                         0 if el.get("runnable") == "no" else 1,
+                         1 if el.find("softwarelist") is not None else 0, coins))
             for rom in el.findall("rom"):
                 crc = (rom.get("crc") or "").lower()
                 if crc and rom.get("status") != "nodump":
@@ -267,10 +307,10 @@ class Index:
                 db.executemany("INSERT INTO rom VALUES (?,?,?,?)", roms)
                 roms = []
             if len(sets) >= 2000:
-                db.executemany("INSERT OR REPLACE INTO romset VALUES (?,?,?,?,?,?,?,?,?,?,?)", sets)
+                db.executemany("INSERT OR REPLACE INTO romset VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", sets)
                 sets = []
         db.executemany("INSERT INTO rom VALUES (?,?,?,?)", roms)
-        db.executemany("INSERT OR REPLACE INTO romset VALUES (?,?,?,?,?,?,?,?,?,?,?)", sets)
+        db.executemany("INSERT OR REPLACE INTO romset VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", sets)
         return count
 
 
@@ -290,6 +330,8 @@ def _remove(path: str) -> None:
 
 
 def _download(url: str, target: str) -> None:
+    if url == MAME_RELEASE:
+        url = _mame_list_url()
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as answer:
         with open(target, "wb") as out:
@@ -298,6 +340,17 @@ def _download(url: str, target: str) -> None:
                 if not chunk:
                     break
                 out.write(chunk)
+
+
+def _mame_list_url() -> str:
+    """Where the latest MAME release keeps its list of machines, mameNNNNlx.zip."""
+    request = urllib.request.Request(MAME_RELEASE, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as answer:
+        release = json.load(answer)
+    for asset in release.get("assets", []):
+        if re.fullmatch(r"mame\d+lx\.zip", asset.get("name", "")):
+            return asset["browser_download_url"]
+    raise OSError("MAME release {} has no machine list".format(release.get("tag_name")))
 
 
 class Match:
@@ -359,17 +412,22 @@ class ArcadeProvider(Provider):
 
     def _ensure(self) -> Optional[sqlite3.Connection]:
         wanted = [name for name, _ in self.wanted_sources()]
-        stale = self.index.age_days() > INDEX_DAYS or not set(wanted) <= set(self.index.sources())
+        # MAME's list is not wanted here: it is large and only names what
+        # nothing else does, so failing to fetch it must not make every
+        # scrape that follows try again
+        stale = self.index.age_days() > INDEX_DAYS or not set(wanted) <= set(self.index.sources()) \
+            or self.index.format() != INDEX_FORMAT
         if stale and not self._tried_to_build:
             self._tried_to_build = True
-            self.index.build(self.wanted_sources(), self.fetch)
+            self.index.build(self.wanted_sources() + [(MAME, MAME_RELEASE)], self.fetch)
         return self.index.connect()
 
     def prefetch(self, requests: Any) -> None:
         if any(members_of(r) for r in requests or []):
             self._ensure()
 
-    def identify(self, request: Request) -> Optional[Match]:
+    def identify(self, request: Request, mame: bool = False) -> Optional[Match]:
+        """The set a zip is, by the emulators' lists, or by MAME's own when asked."""
         members = members_of(request)
         if not members:
             return None
@@ -381,7 +439,8 @@ class ArcadeProvider(Provider):
         hits: Dict[Tuple[str, str], int] = defaultdict(int)
         for row in db.execute("SELECT DISTINCT source, name, crc FROM rom WHERE crc IN ({})".format(marks),
                               tuple(crcs)):
-            hits[(row["source"], row["name"])] += 1
+            if (row["source"] == MAME) == mame:
+                hits[(row["source"], row["name"])] += 1
         scored: List[Tuple[tuple, str, str, float, bool]] = []
         for (source, name), count in hits.items():
             own, full = set(), set()
@@ -443,10 +502,12 @@ class ArcadeProvider(Provider):
         match = self.identify(request)
         if match is None:
             known = self._known_by_name(request)
-            if known is None:
+            if known is not None:
+                return [{"id": known["filename"], "title": known["name"], "score": 0.5,
+                         "matchedby": "filename"}]
+            match = self.identify(request, mame=True)
+            if match is None:
                 return []
-            return [{"id": known["filename"], "title": known["name"], "score": 0.5,
-                     "matchedby": "filename"}]
         title, _ = clean_title(self._parent_description(match))
         return [{"id": match.parent, "title": title, "score": round(match.coverage, 3),
                  "matchedby": "hash", "subtitle": match.row["description"],
@@ -456,9 +517,11 @@ class ArcadeProvider(Provider):
         match = self.identify(request)
         if match is None:
             known = self._known_by_name(request)
-            if known is None or known["filename"] != candidate_id:
+            if known is not None:
+                return self._details_by_name(known) if known["filename"] == candidate_id else None
+            match = self.identify(request, mame=True)
+            if match is None:
                 return None
-            return self._details_by_name(known)
         if match.parent != candidate_id:
             return None
         row = match.row
@@ -479,8 +542,11 @@ class ArcadeProvider(Provider):
         derived = self._derived(row) if row["cloneof"] and not match.own_game else ""
         game = self._parent_row(match) if derived else row
         game_flags = self._launchbox_flags(game["name"]) if derived else flags
-        out["category"] = self._category(game["description"],
-                                         bool(game["isbios"] or game["isdevice"]), game_flags)
+        if match.source == MAME and not game_flags:
+            out["category"] = self._mame_category(game)
+        else:
+            out["category"] = self._category(game["description"],
+                                             bool(game["isbios"] or game["isdevice"]), game_flags)
         tags = []
         board = board_of(row["sourcefile"] or (flags or {}).get("source", ""))
         if board:
@@ -589,6 +655,20 @@ class ArcadeProvider(Provider):
         if flags.get("bootleg") or flags.get("hack") or "bootleg" in description or "hack" in description:
             return "hack"
         return "retail"
+
+    @classmethod
+    def _mame_category(cls, row: sqlite3.Row) -> str:
+        """A category from what MAME's own list says of a machine.
+
+        MAME does not say which of its machines are arcade games, but an arcade
+        game takes coins, and a machine with a software list is a home system.
+        """
+        if row["isbios"] or row["isdevice"] or not row["runnable"]:
+            return "bios"
+        folder = (row["sourcefile"] or "").split("/")[0]
+        if row["ismechanical"] or row["softwarelist"] or not row["coins"] or folder in NOT_ARCADE_FOLDERS:
+            return "nongame"
+        return cls._category(row["description"], False, None)
 
     def _launchbox_flags(self, romset: str) -> Optional[Dict[str, Any]]:
         """LaunchBox's MAME entry for a set, when its index is there."""

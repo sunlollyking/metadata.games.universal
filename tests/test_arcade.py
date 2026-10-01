@@ -55,6 +55,35 @@ MAME2003 = """<?xml version="1.0"?>
 
 DATS = {"fbneo": FBNEO, "mame2003plus": MAME2003}
 
+# Current MAME's own list: machines no emulator here has, and Aggressors again
+# under yet another name, which the emulators' lists must win
+MAME = """<?xml version="1.0"?>
+<mame build="0.289">
+  <machine name="aodkm" sourcefile="neogeo/neogeo.cpp"><description>Aggressors of Dark Kombat (MAME)</description>
+    <rom name="074-p1.p1" size="2097152" crc="62369553"/>
+    <rom name="074-c1.c1" size="2097152" crc="a0b39344"/>
+    <input players="2" coins="2"/></machine>
+  <machine name="jak_prhp" sourcefile="tvgames/generalplus_gpl32612.cpp">
+    <description>Power Rangers Super Megaforce Hero Portal</description>
+    <year>200?</year><manufacturer>JAKKS Pacific Inc</manufacturer>
+    <rom name="prhp.bin" size="8388608" crc="aaaa0001"/><input players="1"/></machine>
+  <machine name="hexaprs" sourcefile="misc/yuvomz80.cpp"><description>Hexa President (YM2610 set)</description>
+    <year>2000</year><manufacturer>Yuvo</manufacturer>
+    <rom name="hx.u1" size="1" crc="aaaa0002"/><input players="1" coins="2"/></machine>
+  <machine name="cp31" sourcefile="devices/bus/vme/cp31.cpp" isdevice="yes" runnable="no">
+    <description>Besta CP31 CPU board</description><rom name="cp31.bin" size="1" crc="aaaa0003"/></machine>
+  <machine name="mysys" sourcefile="sega/mysys.cpp"><description>My System</description>
+    <rom name="sys.bin" size="1" crc="aaaa0004"/><softwarelist name="mysys"/>
+    <input players="2" coins="1"/></machine>
+  <machine name="j_ewna" sourcefile="jpm/jpmsru.cpp" ismechanical="yes">
+    <description>Each Way Nudger (JPM) (SRU)</description>
+    <rom name="ew.bin" size="1" crc="aaaa0005"/><input players="1" coins="3"/></machine>
+  <machine name="acheart" sourcefile="sega/naomi.cpp"><description>Arcana Heart</description>
+    <rom name="ah1.ic1" size="4194304" crc="abcdef01"/>
+    <rom name="ah1.ic2" size="4194304" crc="abcdef02"/><input players="2" coins="2"/></machine>
+</mame>
+"""
+
 AODK = [["074-p1.p1", 2097152, "62369553"], ["074-c1.c1", 2097152, "a0b39344"]]
 
 
@@ -98,9 +127,18 @@ class ArcadeTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         self.logged = []
+        self.fetched = []
+        self.mame_available = True
         log = lambda message, notable: self.logged.append(message)  # noqa: E731
 
         def fetch(url, target):
+            self.fetched.append(url)
+            if url == arcade.MAME_RELEASE:
+                if not self.mame_available:
+                    raise OSError("rate limited")
+                with zipfile.ZipFile(target, "w") as z:
+                    z.writestr("mame0289.xml", MAME)
+                return
             for name, dat in DATS.items():
                 if name in url.replace("-", "").replace("%20", "").lower() or (
                         name == "mame2003plus" and "mame2003-plus" in url):
@@ -112,9 +150,15 @@ class ArcadeTest(unittest.TestCase):
         self.launchbox = launchbox.LaunchBoxProvider(log, self.dir)
         self.launchbox.index._download = lambda target: launchbox_zip(target)
         self.launchbox.prefetch([])
-        self.provider = arcade.ArcadeProvider(
-            log, self.dir, installed=lambda addon: addon in (
-                "game.libretro.fbneo", "game.libretro.mame2003_plus"), fetch=fetch)
+        self.fetch = fetch
+        self.log = log
+        self.provider = self.new_provider()
+
+    def new_provider(self):
+        """A provider as a fresh scraper run makes one"""
+        return arcade.ArcadeProvider(
+            self.log, self.dir, installed=lambda addon: addon in (
+                "game.libretro.fbneo", "game.libretro.mame2003_plus"), fetch=self.fetch)
 
     def tearDown(self):
         self.provider.close()
@@ -138,7 +182,49 @@ class ArcadeTest(unittest.TestCase):
 
     def test_only_installed_emulators_lists_are_fetched(self):
         self.provider.identify(request(AODK))
+        self.assertEqual(sorted(self.provider.index.sources()), ["fbneo", "mame", "mame2003plus"])
+
+    def test_a_set_only_mame_knows_is_named_from_its_list(self):
+        portal = [["prhp.bin", 8388608, "aaaa0001"]]
+        found = self.provider.find(request(portal, filename="jak_prhp.zip"))
+        self.assertEqual([(c["id"], c["title"], c["matchedby"]) for c in found],
+                         [("jak_prhp", "Power Rangers Super Megaforce Hero Portal", "hash")])
+        details = self.provider.details("jak_prhp", request(portal, filename="jak_prhp.zip"))
+        self.assertEqual((details["publishers"], details["emulators"], details["category"]),
+                         (["JAKKS Pacific Inc"], [], "nongame"))
+
+    def test_a_set_mame_renamed_is_still_known_by_its_chips(self):
+        board = [["cp31.bin", 1, "aaaa0003"]]
+        found = self.provider.find(request(board, filename="besta88.zip"))
+        self.assertEqual([(c["id"], c["title"]) for c in found], [("cp31", "Besta CP31 CPU board")])
+
+    def test_mames_list_comes_after_the_emulators_and_launchbox(self):
+        self.assertEqual(self.provider.find(request(AODK))[0]["id"], "aodk")
+        newer = [["ah1.ic1", 4194304, "abcdef01"], ["ah1.ic2", 4194304, "abcdef02"]]
+        self.assertEqual([c["matchedby"] for c in self.provider.find(request(newer, filename="acheart.zip"))],
+                         ["filename"])
+
+    def test_what_mame_says_of_a_machine_files_it(self):
+        def category(romset, crc):
+            chips = request([["x", 1, crc]], filename=romset + ".zip")
+            return self.provider.details(romset, chips)["category"]
+        self.assertEqual(category("hexaprs", "aaaa0002"), "retail")
+        self.assertEqual(category("cp31", "aaaa0003"), "bios")
+        self.assertEqual(category("mysys", "aaaa0004"), "nongame")
+        self.assertEqual(category("j_ewna", "aaaa0005"), "nongame")
+
+    def test_mames_list_failing_does_not_make_every_scrape_rebuild(self):
+        self.provider.close()
+        shutil.rmtree(os.path.join(self.dir, "arcade"), ignore_errors=True)
+        self.mame_available = False
+        self.provider = self.new_provider()
+        self.assertEqual(self.provider.find(request(AODK))[0]["id"], "aodk")
         self.assertEqual(sorted(self.provider.index.sources()), ["fbneo", "mame2003plus"])
+        fetches = len(self.fetched)
+        self.provider.close()
+        self.provider = self.new_provider()
+        self.provider.find(request(AODK))
+        self.assertEqual(len(self.fetched), fetches)
 
     def test_a_clone_is_a_release_of_its_parent(self):
         clone = [["084-pg1.p1", 2097152, "5e54cf95"], ["084-c1.c1", 4194304, "fe087e32"]]
