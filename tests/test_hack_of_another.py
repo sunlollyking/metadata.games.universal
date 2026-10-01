@@ -73,3 +73,26 @@ def test_a_hack_is_named_by_whoever_names_it():
     # A group's tag is the game itself, whatever the file is called
     assert namer.hack_name("Steve Davis Snooker (United Kingdom)[h Homesoft]", "Snooker.atr",
                            "Steve Davis Snooker") == ""
+
+
+def test_a_hack_another_catalogue_lists_as_a_game_stays_that_game():
+    a = Scripted("a", [cand("1", "hash")], details={"1": dict(SONIC2, dump={
+        "name": "Sonic Boom By Snkenjoi (S2 Hack).zip", "edition": "Mod"})})
+    b = Scripted("b", [cand("18309", "hash", title="Sonic Boom")],
+                 details={"18309": {"title": "Sonic Boom", "edition": "Mod"}})
+    req = Request({"filename": "Sonic Boom.bin", "crc32": "aa903c50"}, {"provider_order": "a,b"})
+    out = universal.Universal([a, b], no_log).details("a:1", req)
+    assert out["title"] == "Sonic Boom"
+    assert "releases" not in out or all(r.get("edition") != "Mod" for r in out["releases"])
+
+
+def test_a_hack_no_other_catalogue_lists_is_a_version():
+    a = Scripted("a", [cand("1", "hash")], details={"1": dict(SONIC2, dump={
+        "name": "Sonic the Hedgehog 2 Rev 1 [h11]", "edition": "Mod"})})
+    # The other catalogue knows the dump only as the game it was made from
+    b = Scripted("b", [cand("3", "hash", title="Sonic The Hedgehog 2")],
+                 details={"3": {"title": "Sonic The Hedgehog 2"}})
+    req = Request({"filename": "Sonic 2 Delta II.bin", "crc32": "85486e22"}, {"provider_order": "a,b"})
+    out = universal.Universal([a, b], no_log).details("a:1", req)
+    assert out["title"] == "Sonic the Hedgehog 2"
+    assert out["releases"][0]["title"] == "Sonic 2 Delta II"

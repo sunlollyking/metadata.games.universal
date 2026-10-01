@@ -285,7 +285,8 @@ class Universal:
                 named = [self._namespaced(provider, c, alone, request) for c in candidates]
         return named
 
-    def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
+    def details(self, candidate_id: str, request: Request,
+                as_version: bool = True) -> Optional[Dict[str, Any]]:
         name, local_id = split_id(candidate_id)
         primary = self.providers.get(name)
         if primary is None:
@@ -295,6 +296,13 @@ class Universal:
         if details is None:
             return None
         version = derived_version(details.pop("dump", None), str(details.get("title") or ""), request)
+        if version is not None and as_version:
+            # A hack a catalogue lists as a game of its own, as RetroAchievements
+            # lists Sonic Boom with achievements of its own, is that game
+            own = self._listed_as_own_game(primary, request, str(details.get("title") or ""))
+            if own:
+                self.log("{} lists this dump as a game of its own".format(split_id(own)[0]), False)
+                return self.details(own, request, as_version=False)
         if version is not None:
             # GoodTools names a hack after the revision it was made from,
             # "Sonic the Hedgehog 2 Rev 1 [h11]"; the game is the one without it
@@ -327,6 +335,20 @@ class Universal:
             if details.get(role):
                 details[role] = companies.normalise(details[role])
         return details
+
+    def _listed_as_own_game(self, primary: Provider, request: Request, parent: str) -> str:
+        """Another catalogue's id for this dump, where it lists it as a game other than parent."""
+        for provider in self.ordered(request.settings, request.bulk):
+            if provider is primary or provider.name == "arcade":
+                continue
+            for cand in self._ask(provider, "find", request) or []:
+                if cand.get("matchedby") not in IDENTITY_MATCHES:
+                    continue
+                title = str(cand.get("title") or "")
+                if title and namer.normalise(namer.without_revision(title)) != \
+                        namer.normalise(namer.without_revision(parent)):
+                    return join_id(provider.name, str(cand["id"]))
+        return ""
 
     @staticmethod
     def _refine(request: Request, details: Dict[str, Any]) -> Request:
