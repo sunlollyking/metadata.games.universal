@@ -63,7 +63,10 @@ ART = {
 
 #: Pictures of the medium: the flat scan, its texture and the rendered one
 MEDIUM_ART = ("support-2D", "support-texture", "support-3D")
-ART_STRINGS = {"video": "trailer", "video-normalized": "trailer", "manuel": "manual"}
+#: Its videos are not offered as trailers: one played from a link without the
+#: user's login is refused once the shared allowance is spent, and Kodi cannot
+#: sign a link when it plays it
+ART_STRINGS = {"manuel": "manual"}
 SYSTEM_ART = {"logo-monochrome": "logo", "wheel": "clearlogo", "photo": "photo", "illustration": "fanart",
               "controller": "controller", "icon": "icon"}
 #: The service marks a record that is not a game -- a BIOS image, a cheat

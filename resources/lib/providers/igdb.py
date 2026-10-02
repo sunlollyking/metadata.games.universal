@@ -30,6 +30,8 @@ from .. import net
 from . import OnlineProvider, Request, platform_key, platform_keys, platform_names
 
 BASE_URL = "https://api.igdb.com/v4/"
+#: How Kodi plays a YouTube video, through the YouTube add-on
+TRAILER = "plugin://plugin.video.youtube/play/?video_id={}"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 IMAGE_URL = "https://images.igdb.com/igdb/image/upload/t_{}/{}.jpg"
 #: A logo is cut out on a transparent background, which only the PNG keeps
@@ -499,6 +501,11 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     tags = names(game, "keywords") + names(game, "player_perspectives") + names(game, "game_engines")
     if tags:
         out["tags"] = list(dict.fromkeys(tags))
+    clips = [v for v in game.get("videos") or [] if isinstance(v, dict) and v.get("video_id")]
+    if clips:
+        # A video IGDB calls a trailer, else whatever it lists first
+        named = [v for v in clips if "trailer" in str(v.get("name") or "").lower()]
+        out["trailer"] = TRAILER.format((named or clips)[0]["video_id"])
     extra = wider(game)
     if extra:
         out["igdb"] = extra
@@ -551,7 +558,6 @@ def wider(game: dict) -> Dict[str, Any]:
               for v in game.get("videos") or [] if isinstance(v, dict) and v.get("video_id")]
     if videos:
         out["videos"] = videos
-        out.setdefault("trailer", videos[0])
     return out
 
 

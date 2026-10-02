@@ -23,7 +23,8 @@ ROW = {"game_name": "housemn2", "title": "House Mannequin Roppongi Live hen (Jap
        "history": HISTORY,
        "url_image_title": "https://adb.arcadeitalia.net/?mame=housemn2&type=title&resize=0",
        "url_image_ingame": "https://adb.arcadeitalia.net/?mame=housemn2&type=ingame&resize=0",
-       "url_image_flyer": "", "url_image_marquee": "", "url_image_cabinet": ""}
+       "url_image_flyer": "", "url_image_marquee": "", "url_image_cabinet": "",
+       "url_video_shortplay_hd": "https://adb.arcadeitalia.net/download_file.php?codice=housemn2"}
 
 
 def request(**query):
@@ -111,6 +112,11 @@ class LastTest(unittest.TestCase):
         details = self.details({"title": "House Mannequin", "romset": "housemn2"})
         self.assertTrue(details["overview"].startswith("A mahjong game"))
         self.assertIn("titlescreen", details["art"])
+
+    def test_its_recording_of_the_set_is_the_trailer(self):
+        details = self.details({"title": "House Mannequin", "romset": "housemn2",
+                                "trailer": "plugin://plugin.video.youtube/play/?video_id=x"})
+        self.assertEqual(details["trailer"], ROW["url_video_shortplay_hd"])
 
     def test_replaces_nothing(self):
         details = self.details({"title": "House Mannequin", "romset": "housemn2",

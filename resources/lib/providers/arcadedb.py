@@ -75,6 +75,10 @@ class ArcadeDbProvider(OnlineProvider):
         art = {art_type: [{"url": row[field]}] for art_type, field in ART_FIELDS if row.get(field)}
         if art:
             out["art"] = art
+        # MAME's own recording of the set being played, as an MP4
+        clip = row.get("url_video_shortplay_hd") or row.get("url_video_shortplay")
+        if clip:
+            out["trailer"] = clip
         return out
 
     def _row(self, romset: str, request: Request) -> Optional[Dict[str, Any]]:

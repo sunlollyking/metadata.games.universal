@@ -128,6 +128,12 @@ class WiderCaptureTest(unittest.TestCase):
         self.assertEqual(extra["websites"], ["https://example.invalid/g"])
         self.assertEqual(extra["videos"], ["https://www.youtube.com/watch?v=abc123"])
 
+    def test_the_trailer_is_one_kodi_can_play(self):
+        details = igdb.game_details({"id": 1, "name": "G", "videos": [
+            {"video_id": "gameplay1", "name": "Gameplay video"},
+            {"video_id": "trailer1", "name": "Launch Trailer"}]}, "18")
+        self.assertEqual(details["trailer"], "plugin://plugin.video.youtube/play/?video_id=trailer1")
+
     def test_a_game_with_nothing_extra_carries_nothing(self):
         self.assertNotIn("igdb", igdb.game_details({"id": 1, "name": "G"}, "18"))
 

@@ -333,6 +333,9 @@ class Universal:
                 and not getattr(arcadedb, "exhausted", False):
             extra = self._lookup(arcadedb, refined, details)
             if extra:
+                # A recording of this very set beats a trailer for the game
+                if extra.get("trailer"):
+                    details["trailer"] = extra["trailer"]
                 merge(details, extra, DETAIL_FIELDS)
         details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
