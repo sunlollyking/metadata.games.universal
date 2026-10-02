@@ -4,10 +4,11 @@ Older versions of the scraper stored ScreenScraper's videos as trailers, as
 links without the user's login, which the service refuses once its shared
 allowance is spent. This points each game that has no trailer, or one of those,
 at ArcadeDB's recording of an arcade set, or else at IGDB's trailer through
-the YouTube add-on. A game neither has is left as it is.
+the YouTube add-on. A game neither has keeps its link unless asked to clear it,
+so a skin stops offering a trailer that cannot play.
 
-  trailers.py DATABASE SETTINGS            say what would change
-  trailers.py DATABASE SETTINGS --apply    back the database up, then write
+  trailers.py DATABASE SETTINGS                          say what would change
+  trailers.py DATABASE SETTINGS --apply [--clear-dead]   back the database up, then write
 
 DATABASE is Kodi's Games*.db and SETTINGS the scraper's settings.xml, for the
 IGDB keys.
@@ -99,13 +100,16 @@ def main():
         trailer = clips.get(known.get("arcade")) or trailers.get(known.get("igdb"))
         if trailer:
             changes.append((trailer, game_id))
+    found = {game_id for _, game_id in changes}
+    if "--clear-dead" in sys.argv:
+        changes += [("", game_id) for game_id, trailer in wanted.items() if trailer and game_id not in found]
     dead = sum(1 for t in wanted.values() if t)
-    replaced = sum(1 for _, game_id in changes if wanted[game_id])
+    replaced = sum(1 for game_id in found if wanted[game_id])
     print("games without a working trailer: {} ({} with a dead link)".format(len(wanted), dead))
     print("trailers found: {} from ArcadeDB, {} from IGDB; {} replace a dead link".format(
         sum(1 for t, _ in changes if t.startswith("https://adb.")), sum(1 for t, _ in changes if t.startswith("plugin:")),
         replaced))
-    print("dead links left: {}".format(dead - replaced))
+    print("dead links left: {}{}".format(dead - replaced, ", to be cleared" if "--clear-dead" in sys.argv else ""))
 
     if "--apply" in sys.argv:
         backup = "{}.{}-pre-trailers".format(database, time.strftime("%Y%m%d-%H%M%S"))
@@ -113,7 +117,7 @@ def main():
             db.backup(copy)
         with db:
             db.executemany("UPDATE game SET trailer = ? WHERE idGame = ?", changes)
-        print("written {}; backup {}".format(len(changes), backup))
+        print("written {}; backup {}".format(len(changes), os.path.basename(backup)))
 
 
 if __name__ == "__main__":

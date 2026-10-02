@@ -50,6 +50,13 @@ class TrailersTest(unittest.TestCase):
         self.assertEqual(got[3], DEAD, "a game with nothing better is left alone")
         self.assertEqual(got[4], "plugin://kept", "a working trailer is not touched")
 
+        with mock.patch.object(trailers, "fetch_json", answer), mock.patch.object(trailers.time, "sleep"), \
+                mock.patch.object(sys, "argv", ["trailers.py", database, settings, "--apply", "--clear-dead"]):
+            trailers.main()
+        got = dict(sqlite3.connect(database).execute("SELECT idGame, trailer FROM game"))
+        self.assertEqual(got[3], "", "asked to, a dead link with nothing better is cleared")
+        self.assertEqual(got[4], "plugin://kept")
+
 
 if __name__ == "__main__":
     unittest.main()
