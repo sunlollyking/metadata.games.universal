@@ -286,6 +286,29 @@ class ArcadeTest(unittest.TestCase):
                          (2005, ["Fighter"], "retail", []))
         self.assertEqual(details["tags"], ["Sega Naomi"])
 
+    def test_a_set_finds_libretros_pictures_by_mames_name_for_it(self):
+        held = {"Named_Boxarts": {"Power Rangers Super Megaforce Hero Portal", "Arcana Heart"},
+                "Named_Snaps": {"Arcana Heart"}, "Named_Titles": set()}
+        provider = arcade.ArcadeProvider(self.log, self.dir, installed=lambda addon: True,
+                                         fetch=self.fetch, thumbnails=lambda: held)
+        self.addCleanup(provider.close)
+        portal = [["prhp.bin", 8388608, "aaaa0001"]]
+        art = provider.details("jak_prhp", request(portal, filename="jak_prhp.zip"))["art"]
+        self.assertEqual(art, {"boxfront": [{"url": "https://raw.githubusercontent.com/libretro-thumbnails/"
+                                                    "MAME/master/Named_Boxarts/Power%20Rangers%20Super%20"
+                                                    "Megaforce%20Hero%20Portal.png"}]})
+        # A set named from LaunchBox's list is found the same way
+        newer = [["ah1.ic1", 4194304, "abcdef01"], ["ah1.ic2", 4194304, "abcdef02"]]
+        art = provider.details("acheart", request(newer, filename="acheart.zip"))["art"]
+        self.assertEqual(sorted(art), ["boxfront", "screenshot"])
+
+    def test_a_set_libretro_has_no_pictures_of_gets_none(self):
+        provider = arcade.ArcadeProvider(self.log, self.dir, installed=lambda addon: True,
+                                         fetch=self.fetch, thumbnails=lambda: {"Named_Boxarts": set()})
+        self.addCleanup(provider.close)
+        portal = [["prhp.bin", 8388608, "aaaa0001"]]
+        self.assertNotIn("art", provider.details("jak_prhp", request(portal, filename="jak_prhp.zip")))
+
     def test_a_fruit_machine_or_a_device_is_not_filed_as_a_game(self):
         chips = [["a", 1, "abcdef03"], ["b", 1, "abcdef04"]]
         self.assertEqual(self.provider.details("ac1club", request(chips, filename="ac1club.zip"))

@@ -97,8 +97,9 @@ def scraper() -> universal.Universal:
     cache_dir = os.environ.get(CACHE_DIR_ENV) or xbmcvfs.translatePath(
         "special://profile/addon_data/{}/rdb/".format(ADDON_ID))
     if _universal is None or _cache_dir != cache_dir:
+        libretro_provider = libretro.LibretroProvider(cache_dir, log)
         providers = [
-            libretro.LibretroProvider(cache_dir, log),
+            libretro_provider,
             retroachievements.RetroAchievementsProvider(log, cache_dir),
             screenscraper.ScreenScraperProvider(log, cache_dir),
             igdb.IgdbProvider(log, cache_dir),
@@ -109,7 +110,8 @@ def scraper() -> universal.Universal:
             arcade.ArcadeProvider(
                 log, cache_dir,
                 installed=lambda addon: bool(
-                    xbmc.getCondVisibility("System.HasAddon({})".format(addon)))),
+                    xbmc.getCondVisibility("System.HasAddon({})".format(addon))),
+                thumbnails=lambda: libretro_provider.thumbnails(arcade.THUMB_PLATFORM)),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir

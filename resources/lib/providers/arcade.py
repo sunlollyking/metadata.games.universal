@@ -30,7 +30,7 @@ import zipfile
 from collections import defaultdict
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from . import Provider, Request
+from . import Provider, Request, libretro
 
 Log = Callable[[str, bool], None]
 USER_AGENT = "Kodi metadata.games.universal"
@@ -55,6 +55,8 @@ SOURCES: Tuple[Tuple[str, str, str], ...] = (
 )
 #: Current MAME's list of every machine, found from its latest release
 MAME = "mame"
+#: libretro-thumbnails' repository of arcade machines, named by MAME's description
+THUMB_PLATFORM = "MAME"
 MAME_RELEASE = "https://api.github.com/repos/mamedev/mame/releases/latest"
 
 SOURCE_RANK = {name: rank for rank, (name, _, _) in enumerate(SOURCES)}
@@ -388,8 +390,11 @@ class ArcadeProvider(Provider):
     def __init__(self, log: Log, cache_dir: str = "",
                  installed: Optional[Callable[[str], bool]] = None,
                  launchbox_index: Optional[str] = None,
-                 fetch: Callable[[str, str], None] = _download):
+                 fetch: Callable[[str, str], None] = _download,
+                 thumbnails: Optional[Callable[[], Optional[Dict[str, set]]]] = None):
         super().__init__(log)
+        #: What libretro-thumbnails holds for arcade machines, folder by folder
+        self.thumbnails = thumbnails
         self.index = Index(os.path.join(cache_dir or "", "arcade", INDEX_NAME), log)
         #: Whether an emulator is installed. Only installed emulators' lists
         #: are fetched; with none installed, FBNeo's still names the games.
@@ -570,7 +575,33 @@ class ArcadeProvider(Provider):
         elif derived == "bootleg":
             release["licence"] = "pirate"
         out["releases"] = [release]
+        art = self._art(row["name"])
+        if art:
+            out["art"] = art
         return out
+
+    def _art(self, set_name: str) -> Dict[str, List[Dict[str, str]]]:
+        """libretro's pictures of a machine, found by MAME's description of it.
+
+        They are named for the machine, not the zip, so a set no emulator's
+        list holds still finds them through MAME's name for it, or its parent's.
+        """
+        held = self.thumbnails() if self.thumbnails else None
+        db = self._ensure() if held else None
+        if db is None:
+            return {}
+        names = [set_name]
+        parent = db.execute("SELECT cloneof FROM romset WHERE name = ? AND cloneof <> '' LIMIT 1",
+                            (set_name,)).fetchone()
+        if parent is not None:
+            names.append(parent["cloneof"])
+        for name in names:
+            for (description,) in db.execute("SELECT DISTINCT description FROM romset WHERE name = ?",
+                                             (name,)):
+                art = libretro.art_urls(THUMB_PLATFORM, description, None, held)
+                if art:
+                    return art
+        return {}
 
     def _derived(self, row: sqlite3.Row) -> str:
         """"hack" or "bootleg" where a set was made from another game, or ""."""
@@ -641,6 +672,9 @@ class ArcadeProvider(Provider):
         out.update(_genres(known))
         out["releases"] = [{"title": known["name"], "romset": known["filename"],
                             "status": "proto" if known.get("prototype") else "retail"}]
+        art = self._art(known["filename"])
+        if art:
+            out["art"] = art
         return out
 
     @staticmethod
