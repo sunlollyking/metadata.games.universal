@@ -19,8 +19,8 @@ from resources.lib import saveart as saveart_lib  # noqa: E402
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
-    arcade, igdb, launchbox, libretro, regvault, retroachievements, screenscraper, thegamesdb,
-    wikidata)
+    arcade, arcadedb, igdb, launchbox, libretro, regvault, retroachievements, screenscraper,
+    thegamesdb, wikidata)
 
 #: How long a batch may spend on the web before it finishes offline
 BATCH_SECONDS = 90
@@ -28,7 +28,7 @@ BATCH_SECONDS = 90
 ADDON_ID = "metadata.games.universal"
 CACHE_DIR_ENV = "METADATA_GAMES_LIBRETRO_CACHE_DIR"
 DEFAULTS: Dict[str, Any] = {
-    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox",
+    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox,arcadedb",
     "launchbox_bulk": True,
     "cache_days": 30,
     "download": True,
@@ -112,6 +112,7 @@ def scraper() -> universal.Universal:
                 installed=lambda addon: bool(
                     xbmc.getCondVisibility("System.HasAddon({})".format(addon))),
                 thumbnails=lambda: libretro_provider.store.thumbnails(arcade.THUMB_PLATFORM)),
+            arcadedb.ArcadeDbProvider(log, cache_dir),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir

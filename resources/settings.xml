@@ -5,7 +5,7 @@
       <group id="1">
         <setting id="provider_order" type="string" label="30005" help="30006">
           <level>0</level>
-          <default>libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox</default>
+          <default>libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox,arcadedb</default>
           <control type="edit" format="string"/>
         </setting>
         <setting id="launchbox_bulk" type="boolean" label="30045" help="30046">
