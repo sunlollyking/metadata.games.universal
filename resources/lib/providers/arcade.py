@@ -99,6 +99,9 @@ REGIONS = {
     "australia": "Australia", "canada": "Canada",
 }
 PARENS = re.compile(r"\s*\(([^()]*)\)\s*$")
+#: Older MAME lists carry some BIOS sets as machines of their own, unflagged,
+#: but their names still say what they are: "ST-V Bios", "MegaTech - Bios"
+BIOS_NAMED = re.compile(r"\bbios\b", re.IGNORECASE)
 
 SCHEMA = """
 CREATE TABLE romset (source TEXT, name TEXT, description TEXT, year TEXT,
@@ -680,7 +683,7 @@ class ArcadeProvider(Provider):
     @staticmethod
     def _category(description: str, bios: bool, flags: Optional[Dict[str, Any]]) -> str:
         flags = flags or {}
-        if bios or (flags.get("genre") or "").startswith("System"):
+        if bios or BIOS_NAMED.search(description) or (flags.get("genre") or "").startswith("System"):
             return "bios"
         if flags.get("mechanical") or flags.get("casino") or flags.get("fruit") or flags.get("nonarcade") \
                 or (flags.get("genre") or "").startswith("Gambling"):

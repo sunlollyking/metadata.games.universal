@@ -334,6 +334,11 @@ class ArcadeTest(unittest.TestCase):
         details = self.provider.details("neogeo", request(bios, filename="neogeo.zip"))
         self.assertEqual(details["category"], "bios")
 
+    def test_a_set_named_as_a_bios_is_one(self):
+        for description in ("ST-V Bios", "MegaTech - Bios", "PGM (Polygame Master) System BIOS"):
+            self.assertEqual(arcade.ArcadeProvider._category(description, False, None), "bios")
+        self.assertEqual(arcade.ArcadeProvider._category("Bioship Paladin", False, None), "retail")
+
     def test_a_bootleg_is_a_pirate_version_of_its_game_and_a_fruit_machine_no_game(self):
         bootleg = [["bl-p1.p1", 2097152, "11111111"], ["084-c1.c1", 4194304, "fe087e32"]]
         details = self.provider.details("kof95", request(bootleg))
