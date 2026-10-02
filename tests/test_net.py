@@ -1,7 +1,9 @@
 """net: credential-free logging, error reporting, throttling retries and pacing."""
+import http.client
 import os
 import sys
 import unittest
+from unittest import mock
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TESTS_DIR)
@@ -28,6 +30,13 @@ class SafeUrlTest(unittest.TestCase):
         err = net.Error("https://x.test/a?y=SECRET&i=1", 401, "bad key")
         self.assertNotIn("SECRET", str(err))
         self.assertIn("HTTP 401", str(err))
+
+
+class FetchTest(unittest.TestCase):
+    def test_a_download_cut_short_is_a_failure_like_any_other(self):
+        with mock.patch("urllib.request.urlopen", side_effect=http.client.IncompleteRead(b"")):
+            with self.assertRaises(net.Error):
+                net.fetch("GET", "https://x.test/a.png", None, {}, 5)
 
 
 class RequestTest(unittest.TestCase):

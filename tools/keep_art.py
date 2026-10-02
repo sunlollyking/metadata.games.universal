@@ -15,10 +15,12 @@ plain path. SETTINGS is the scraper's settings.xml, for the sign-in.
 
 Without --apply it fetches up to N pictures (default 30000), the ones every
 view shows first, and stops early if ScreenScraper keeps refusing; run it
-again the next day to go on. Nothing is fetched twice. --apply points the
+again the next day to go on. Nothing is fetched twice, and a picture
+ScreenScraper no longer has is not asked for again. --apply points the
 library at every picture fetched so far: stop Kodi and back the database up
 first.
 """
+import hashlib
 import os
 import shutil
 import sqlite3
@@ -107,36 +109,59 @@ def fetched(base):
     return None
 
 
+def missing_list(real):
+    """Where the pictures ScreenScraper no longer has are remembered, by a digest of their link."""
+    return os.path.join(real, ".keep_art-missing")
+
+
+def digest(url):
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()
+
+
 def fetch(db, folder, real, settings, budget):
+    try:
+        with open(missing_list(real), encoding="utf-8") as f:
+            missing = set(f.read().split())
+    except OSError:
+        missing = set()
+
     todo = []
     for game, wanted in plans(db).items():
         for url, (kind, relative) in wanted.items():
-            if fetched(os.path.join(real, relative)) is None:
+            if digest(url) not in missing and fetched(os.path.join(real, relative)) is None:
                 todo.append((kind not in FIRST, game, url, relative))
     todo.sort()
     print("{} pictures still to fetch; fetching up to {}".format(len(todo), budget))
 
+    os.makedirs(real, exist_ok=True)
     staging = tempfile.mkdtemp(prefix="keep_art-")
-    got = refused = 0
+    got = refused = gone = 0
     try:
         for _, _, url, relative in todo[:budget]:
-            files = saveart.save([url], staging, settings, lambda msg, error=False: None)
-            if url not in files:
+            path, why = saveart.save_one(url, staging, settings, lambda msg, error=False: None)
+            if path is None:
+                # A picture that is not there is not a refusal, and is not asked for again
+                if why == saveart.MISSING:
+                    gone += 1
+                    with open(missing_list(real), "a", encoding="utf-8") as f:
+                        f.write(digest(url) + "\n")
+                    continue
                 refused += 1
                 if refused >= GIVE_UP:
                     print("ScreenScraper refused {} in a row; stopping for today".format(refused))
                     break
                 continue
             refused = 0
-            target = os.path.join(real, relative) + os.path.splitext(files[url])[1]
+            target = os.path.join(real, relative) + os.path.splitext(path)[1]
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            shutil.move(files[url], target)
+            shutil.move(path, target)
             got += 1
             if got % 500 == 0:
                 print("fetched", got, flush=True)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-    print("fetched {} this run".format(got))
+        print("{} no longer on ScreenScraper".format(gone))
+        print("fetched {} this run".format(got))
 
 
 def apply(db, folder, real):

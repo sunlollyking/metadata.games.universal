@@ -4,6 +4,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(TESTS_DIR), "tools"))
@@ -62,6 +63,31 @@ class PlansTest(unittest.TestCase):
         rows = dict(db.execute("SELECT type, url FROM art WHERE media_id = 7"))
         self.assertEqual((rows["boxfront"], rows["thumb"], rows["poster"]), (kept, kept, kept))
         self.assertEqual(rows["fanart"], SS.format(1, "fanart"))
+
+
+class FetchTest(unittest.TestCase):
+    def test_a_picture_screenscraper_no_longer_has_neither_stops_a_run_nor_is_asked_again(self):
+        db, front = library()
+        real = tempfile.mkdtemp()
+        asked = []
+
+        def save_one(url, folder, settings, log):
+            asked.append(url)
+            if url == front:
+                return None, keep_art.saveart.MISSING
+            path = os.path.join(folder, "x.jpg")
+            open(path, "wb").close()
+            return path, None
+
+        # One refusal would stop the run; the missing front must not count as one
+        with mock.patch.object(keep_art, "GIVE_UP", 1), \
+                mock.patch.object(keep_art.saveart, "save_one", side_effect=save_one):
+            keep_art.fetch(db, "special://profile/library-art/", real, {}, 10)
+            self.assertTrue(os.path.isfile(os.path.join(real, "psx/fanart/Europe/Ape Escape (Disc 1).jpg")))
+
+            asked.clear()
+            keep_art.fetch(db, "special://profile/library-art/", real, {}, 10)
+            self.assertEqual(asked, [])
 
 
 if __name__ == "__main__":

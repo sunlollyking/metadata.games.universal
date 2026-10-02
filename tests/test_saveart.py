@@ -85,6 +85,12 @@ class SaveTest(unittest.TestCase):
         self.assertTrue(self.logged)
         self.assertFalse(any("secret" in line for line in self.logged))
 
+    def test_a_missing_picture_is_told_apart_from_a_refusal(self):
+        self.net.route("jeuid=2267", PNG, status=430, headers={"content-type": "image/png"})
+        self.net.route("jeuid=2772", "NOMEDIA", headers={"content-type": "text/html"})
+        self.assertEqual(saveart.save_one(SS_FRONT, self.folder, LOGIN, self.log), (None, saveart.REFUSED))
+        self.assertEqual(saveart.save_one(SS_MISSING, self.folder, LOGIN, self.log), (None, saveart.MISSING))
+
 
 class ActionTest(unittest.TestCase):
     def setUp(self):

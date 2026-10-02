@@ -5,6 +5,7 @@ canned answers. request() paces calls per host, retries once when the host
 says it is throttled and raises Error for any other failure. Log lines drop
 a query string that carries a credential.
 """
+import http.client
 import json
 import time
 import urllib.error
@@ -75,7 +76,7 @@ def fetch(method: str, url: str, body: Optional[bytes], headers: Dict[str, str],
         except Exception:
             payload = b""
         return err.code, {k.lower(): v for k, v in (err.headers or {}).items()}, payload
-    except (urllib.error.URLError, OSError, ValueError) as err:
+    except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as err:
         raise Error(url, reason=str(getattr(err, "reason", None) or err))
 
 
