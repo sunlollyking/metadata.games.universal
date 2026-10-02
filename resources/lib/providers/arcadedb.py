@@ -7,7 +7,8 @@ is the long tail -- mahjong and quiz boards, medal games, prototypes -- where
 nothing else has a picture.
 
 It is only asked about a set the arcade provider has already identified, by
-the set's MAME name, and it comes last: its text fills a game no other
+the set's MAME name. Like the arcade provider it is not in the provider order,
+and it is asked after every provider there, so its text fills a game no other
 catalogue describes rather than replacing one that does.
 """
 import re

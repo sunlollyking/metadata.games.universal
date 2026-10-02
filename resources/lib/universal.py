@@ -326,6 +326,14 @@ class Universal:
                     if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
                         extra.pop("overview", None)
                     merge(details, extra, DETAIL_FIELDS)
+        # ArcadeDB is asked by the set name the arcade provider settled on,
+        # whatever the order says, and last, so it only fills what is missing
+        arcadedb = self.providers.get("arcadedb")
+        if arcadedb is not None and refined.get("romset") and not self._offline \
+                and not getattr(arcadedb, "exhausted", False):
+            extra = self._lookup(arcadedb, refined, details)
+            if extra:
+                merge(details, extra, DETAIL_FIELDS)
         details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
             details["genres"] = genres.normalise(details["genres"])
