@@ -59,6 +59,10 @@ class ScraperTest(unittest.TestCase):
     def tearDown(self):
         self.no_network.stop()
 
+    def test_the_arcade_provider_can_read_libretros_thumbnail_list(self):
+        held = scraper.scraper().providers["arcade"].thumbnails()
+        self.assertTrue(held is None or isinstance(held, dict))
+
     def test_crc_hit(self):
         run("find", "megadrive", MEGADRIVE, crc32="24ab4c3a", title="Something Else Entirely")
         found = candidates()

@@ -111,7 +111,7 @@ def scraper() -> universal.Universal:
                 log, cache_dir,
                 installed=lambda addon: bool(
                     xbmc.getCondVisibility("System.HasAddon({})".format(addon))),
-                thumbnails=lambda: libretro_provider.thumbnails(arcade.THUMB_PLATFORM)),
+                thumbnails=lambda: libretro_provider.store.thumbnails(arcade.THUMB_PLATFORM)),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir
