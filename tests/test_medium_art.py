@@ -12,8 +12,8 @@ sys.path.insert(0, ADDON_DIR)
 from resources.lib.providers import Request, medium_art_type, screenscraper  # noqa: E402
 
 
-def request(filename):
-    return Request({"filename": filename}, {})
+def request(filename, platform=""):
+    return Request({"filename": filename, "platform": platform}, {})
 
 
 JEU = """<jeu>
@@ -36,6 +36,15 @@ class MediumTest(unittest.TestCase):
     def test_everything_else_is_a_cartridge(self):
         for name in ("Sonic (USA).md", "game.sfc", "tape.tzx", "", "no-extension"):
             self.assertEqual(medium_art_type(request(name)), "cartridge", name)
+
+    def test_a_raw_dump_is_named_by_its_machine(self):
+        for name, platform, expected in (("Sonic (USA).bin", "Sega Mega Drive", "cartridge"),
+                                         ("Pitfall.bin", "Atari 2600", "cartridge"),
+                                         ("Crash (USA).bin", "Sony PlayStation", "disc"),
+                                         ("Snatcher.img", "Sega Mega-CD", "disc"),
+                                         ("Ys.bin", "NEC PC Engine CD", "disc"),
+                                         ("unknown.bin", "", "cartridge")):
+            self.assertEqual(medium_art_type(request(name, platform)), expected, (name, platform))
 
     def test_screenscraper_names_the_medium_after_the_dump(self):
         for name, expected in (("Sonic CD (USA).cue", "disc"), ("Sonic (USA).md", "cartridge")):

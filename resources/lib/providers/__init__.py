@@ -23,8 +23,15 @@ HASH_PARAMS = ("crc32", "md5", "sha1")
 #: card for everything else. The file says it: a platform is no guide, since
 #: the PC Engine, the Mega Drive and the Neo Geo all sold both.
 DISC_EXTENSIONS = frozenset((
-    "cue", "chd", "iso", "cdi", "gdi", "bin", "img", "ccd", "mds", "nrg", "pbp",
+    "cue", "chd", "iso", "cdi", "gdi", "ccd", "mds", "nrg", "pbp",
     "m3u", "toc", "gcm", "rvz", "wbfs", "wia", "cso", "dol",
+))
+#: Except a raw dump, which a CD's track and a cartridge's ROM both are: a Mega
+#: Drive or Atari 2600 game is as often a .bin as a PlayStation one. For these
+#: the machine decides, by a word in its name.
+RAW_DUMP_EXTENSIONS = frozenset(("bin", "img"))
+DISC_MACHINE_WORDS = frozenset((
+    "cd", "playstation", "saturn", "dreamcast", "gamecube", "wii", "3do", "xbox",
 ))
 
 _platform_key_rx = re.compile(r"[^a-z0-9]+")
@@ -110,7 +117,11 @@ def medium_art_type(request: "Request") -> str:
     """What a picture of the game's own medium should be called."""
     name = request.get("filename") or request.get("path")
     _, _, extension = name.rpartition(".")
-    return "disc" if extension.lower() in DISC_EXTENSIONS else "cartridge"
+    extension = extension.lower()
+    if extension in RAW_DUMP_EXTENSIONS:
+        words = set(re.findall(r"[a-z0-9]+", request.get("platform").lower()))
+        return "disc" if words & DISC_MACHINE_WORDS else "cartridge"
+    return "disc" if extension in DISC_EXTENSIONS else "cartridge"
 
 
 def platform_key(name: str) -> str:
