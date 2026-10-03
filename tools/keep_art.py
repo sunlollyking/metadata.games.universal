@@ -34,8 +34,8 @@ from resources.lib import saveart  # noqa: E402
 
 HOSTS = ("https://neoclone.screenscraper.fr/", "https://www.screenscraper.fr/",
          "https://api.screenscraper.fr/")
-#: Fetched first: the pictures lists, info panels and backgrounds show
-FIRST = ("boxfront", "thumb", "poster", "clearlogo", "fanart")
+#: Fetched first: the pictures lists, info panels, backgrounds and shelves of spines show
+FIRST = ("boxfront", "thumb", "poster", "clearlogo", "fanart", "boxspine")
 #: Refusals in a row that mean the day's allowance is spent
 GIVE_UP = 25
 
