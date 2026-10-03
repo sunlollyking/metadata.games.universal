@@ -38,6 +38,18 @@ class FetchTest(unittest.TestCase):
             with self.assertRaises(net.Error):
                 net.fetch("GET", "https://x.test/a.png", None, {}, 5)
 
+    def test_a_link_with_a_space_is_sent_encoded(self):
+        sent = []
+
+        def urlopen(req, timeout=None):
+            sent.append(req.full_url)
+            raise OSError("no network in tests")
+
+        with mock.patch("urllib.request.urlopen", side_effect=urlopen):
+            with self.assertRaises(net.Error):
+                net.fetch("GET", "https://x.test/m.php?media=maps(world map)&crc=1%2B&n=Pokémon", None, {}, 5)
+        self.assertEqual(sent, ["https://x.test/m.php?media=maps(world%20map)&crc=1%2B&n=Pok%C3%A9mon"])
+
 
 class RequestTest(unittest.TestCase):
     def setUp(self):

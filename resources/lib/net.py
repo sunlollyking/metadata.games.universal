@@ -19,6 +19,8 @@ THROTTLED = (429,)
 RETRY_AFTER = 2.0
 SECRET_KEYS = frozenset(("y", "apikey", "devid", "devpassword", "ssid", "sspassword",
                          "client_id", "client_secret", "access_token"))
+#: Characters a link keeps as they are: the reserved ones and existing escapes
+URL_SAFE = ":/?#[]@!$&'()*+,;=%~"
 Log = Callable[[str, bool], None]
 sleep = time.sleep
 _last_call: Dict[str, float] = {}
@@ -66,7 +68,10 @@ def safe_url(url: str) -> str:
 def fetch(method: str, url: str, body: Optional[bytes], headers: Dict[str, str],
           timeout: float) -> Tuple[int, Dict[str, str], bytes]:
     """One HTTP exchange. Error statuses are returned like any other; transport failures raise Error."""
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    # Sources hand out links with spaces in them (ScreenScraper's "maps(world map)"),
+    # which http.client refuses to send unencoded
+    req = urllib.request.Request(urllib.parse.quote(url, safe=URL_SAFE), data=body, headers=headers,
+                                 method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, {k.lower(): v for k, v in resp.headers.items()}, resp.read()
