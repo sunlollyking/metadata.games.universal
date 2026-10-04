@@ -53,9 +53,9 @@ SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() 
 #: from a template around a screenshot. It names a region no player prefers,
 #: so it is shown only where a game has no other picture of its kind.
 SS_OWN_ART_REGION = "ScreenScraper"
-#: Marquees the service draws from a game's logo over its screenshot are its
-#: own pictures in the same way, rather than the one on the cabinet
-SS_OWN_MEDIA = ("screenmarquee", "screenmarqueesmall")
+#: Marquees the service draws from a game's logo over its screenshot, and the
+#: logo rendered on carbon or steel, are its own pictures in the same way
+SS_OWN_MEDIA = ("screenmarquee", "screenmarqueesmall", "wheel-carbon", "wheel-steel")
 #: Pictures the service files under the wrong kind, by game id and media, left
 #: out so that a rescan doesn't bring them back
 WRONG_MEDIA = {

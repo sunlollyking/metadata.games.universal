@@ -12,10 +12,13 @@ template around a screenshot, and its screen marquees are a game's logo over
 its screenshot, so both come after every other picture of their kind.
 
     prefer_region_art.py DATABASE [--regions Europe,World,USA,Japan]
-                         [--originals BACKUP.db ...] [--apply]
+                         [--launchbox INDEX] [--originals BACKUP.db ...] [--apply]
 
 DATABASE is Kodi's games database (userdata/Database/Games*.db); stop Kodi or
 back it up first. --regions is the order in Kodi's "Region priority" setting.
+A LaunchBox picture's region is only in the catalogue, so --launchbox names
+the scraper's index of it. A logo is read, so an English one comes before any
+picture whose region is unknown, and every other language after that.
 A picture kept in the artwork folder (keep_art.py) no longer has its address;
 --originals names databases from before it was kept, newest first, to read
 it from. A kept picture that loses its place gets its address back and its
@@ -37,7 +40,14 @@ SHOWN_AS = ("thumb", "poster")
 #: Only the box and the marquee a cabinet shows: other pictures swapped to the
 #: best region would mostly come from ScreenScraper, which is slow and counts
 #: every fetch against a quota
-KINDS = ("boxfront", "boxback", "boxspine", "box3d", "boxfull", "marquee")
+KINDS = ("boxfront", "boxback", "boxspine", "box3d", "boxfull", "marquee", "clearlogo")
+#: Kinds whose words are read, and the regions whose pictures write them in English
+READ_KINDS = ("clearlogo",)
+ENGLISH = ("United Kingdom", "Europe", "World", "USA", "Canada", "Australia")
+#: LaunchBox names a few regions differently
+LAUNCHBOX_NAMES = {"North America": "USA", "United States": "USA"}
+#: A LaunchBox picture's region, by its file name
+launchbox_regions = {}
 KEPT = "special://profile/library-art/"
 _SS = re.compile(r"[?&]media=([^&(]*)\(([a-z]+)\)")
 _TAGS = re.compile(r"\(([^)]*)\)")
@@ -52,6 +62,9 @@ def region(url):
         if ss.group(2) == "ss" or ss.group(1) in SS_OWN_MEDIA:
             return SS_OWN_ART_REGION
         return SS_REGION_NAMES.get(ss.group(2))
+    if "launchbox-app.com/" in url:
+        named = launchbox_regions.get(url.rsplit("/", 1)[-1])
+        return LAUNCHBOX_NAMES.get(named, named) or None
     name = urllib.parse.unquote(url.rsplit("/", 1)[-1])
     for tag in _TAGS.findall(name):
         for word in (w.strip() for w in tag.split(",")):
@@ -60,17 +73,27 @@ def region(url):
     return None
 
 
-def rank(url, priority):
+def rank(url, priority, kind=""):
     """Lower is better. Between two of a region, one ScreenScraper doesn't ration is chosen."""
     found = region(url)
     if found is None:
         place = len(priority) + 1
     elif found == SS_OWN_ART_REGION:
         place = len(priority) + 3
+    elif kind in READ_KINDS and found not in ENGLISH:
+        place = len(priority) + 2
     else:
         place = next((index for index, wanted in enumerate(priority) if wanted.lower() == found.lower()),
                      len(priority) + 2)
     return place, _SS.search(url) is not None
+
+
+def load_launchbox(index):
+    """Each LaunchBox picture's region, from the scraper's index of the catalogue."""
+    db = sqlite3.connect("file:{}?mode=ro".format(index), uri=True)
+    launchbox_regions.update((name, area) for name, area in db.execute(
+        "SELECT filename, region FROM image WHERE region IS NOT NULL AND region != ''"))
+    db.close()
 
 
 def originals(backups):
@@ -98,6 +121,10 @@ def main(argv):
     if "--regions" in args:
         at = args.index("--regions")
         regions = args[at + 1]
+        del args[at:at + 2]
+    if "--launchbox" in args:
+        at = args.index("--launchbox")
+        load_launchbox(args[at + 1])
         del args[at:at + 2]
     backups = []
     if "--originals" in args:
@@ -137,8 +164,9 @@ def main(argv):
                 if base not in KINDS or len(slots) < 2 or source(base) is None:
                     continue
                 candidates = [k for k in sorted(slots, key=lambda k: (k != base, k)) if source(k)]
-                best = min(candidates, key=lambda k: rank(source(k), priority))
-                if best == base or rank(source(best), priority)[0] >= rank(source(base), priority)[0]:
+                best = min(candidates, key=lambda k: rank(source(k), priority, base))
+                if best == base or \
+                        rank(source(best), priority, base)[0] >= rank(source(base), priority, base)[0]:
                     continue
                 changed += 1
                 if not apply:
