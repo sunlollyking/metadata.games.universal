@@ -52,6 +52,10 @@ class LogoTest(unittest.TestCase):
         self.assertLess(prefer_region_art.rank(SS.format("wheel").replace("(wor)", "(eu)"), self.PRIORITY, "clearlogo"),
                         prefer_region_art.rank(SS.format("wheel").replace("(wor)", "(jp)"), self.PRIORITY, "clearlogo"))
 
+    def test_an_american_logo_comes_before_a_european_one(self):
+        self.assertLess(prefer_region_art.rank(SS.format("wheel").replace("(wor)", "(us)"), self.PRIORITY, "clearlogo"),
+                        prefer_region_art.rank(SS.format("wheel").replace("(wor)", "(eu)"), self.PRIORITY, "clearlogo"))
+
     def test_a_logo_of_unknown_region_comes_before_a_japanese_one(self):
         self.assertLess(prefer_region_art.rank(LAUNCHBOX, self.PRIORITY, "clearlogo"),
                         prefer_region_art.rank(SS.format("wheel").replace("(wor)", "(jp)"), self.PRIORITY, "clearlogo"))

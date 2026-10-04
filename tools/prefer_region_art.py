@@ -17,8 +17,9 @@ its screenshot, so both come after every other picture of their kind.
 DATABASE is Kodi's games database (userdata/Database/Games*.db); stop Kodi or
 back it up first. --regions is the order in Kodi's "Region priority" setting.
 A LaunchBox picture's region is only in the catalogue, so --launchbox names
-the scraper's index of it. A logo is read, so an English one comes before any
-picture whose region is unknown, and every other language after that.
+the scraper's index of it. A logo is read, so it has an order of its own:
+the United Kingdom's, America's, the World's and Europe's, then one whose
+region is unknown, then Japan's, then any other.
 A picture kept in the artwork folder (keep_art.py) no longer has its address;
 --originals names databases from before it was kept, newest first, to read
 it from. A kept picture that loses its place gets its address back and its
@@ -41,9 +42,10 @@ SHOWN_AS = ("thumb", "poster")
 #: best region would mostly come from ScreenScraper, which is slow and counts
 #: every fetch against a quota
 KINDS = ("boxfront", "boxback", "boxspine", "box3d", "boxfull", "marquee", "clearlogo")
-#: Kinds whose words are read, and the regions whose pictures write them in English
+#: Kinds whose words are read, and the order their regions are preferred in. None
+#: is a picture whose region is unknown, which is nearly always English.
 READ_KINDS = ("clearlogo",)
-ENGLISH = ("United Kingdom", "Europe", "World", "USA", "Canada", "Australia")
+READ_ORDER = ("United Kingdom", "USA", "World", "Europe", "Canada", "Australia", None, "Japan")
 #: LaunchBox names a few regions differently
 LAUNCHBOX_NAMES = {"North America": "USA", "United States": "USA"}
 #: A LaunchBox picture's region, by its file name
@@ -76,12 +78,15 @@ def region(url):
 def rank(url, priority, kind=""):
     """Lower is better. Between two of a region, one ScreenScraper doesn't ration is chosen."""
     found = region(url)
-    if found is None:
+    if kind in READ_KINDS:
+        if found == SS_OWN_ART_REGION:
+            place = len(READ_ORDER) + 1
+        else:
+            place = READ_ORDER.index(found) if found in READ_ORDER else len(READ_ORDER)
+    elif found is None:
         place = len(priority) + 1
     elif found == SS_OWN_ART_REGION:
         place = len(priority) + 3
-    elif kind in READ_KINDS and found not in ENGLISH:
-        place = len(priority) + 2
     else:
         place = next((index for index, wanted in enumerate(priority) if wanted.lower() == found.lower()),
                      len(priority) + 2)
