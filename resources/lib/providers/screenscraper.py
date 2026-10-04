@@ -49,6 +49,10 @@ SS_REGION_NAMES = {
     "sw": "Scandinavia", "tw": "Taiwan", "uk": "United Kingdom", "ar": "Argentina",
 }
 SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() if code != "ss"}
+#: A picture under the region "ss" is the service's own, mostly a box drawn
+#: from a template around a screenshot. It names a region no player prefers,
+#: so it is shown only where a game has no other picture of its kind.
+SS_OWN_ART_REGION = "ScreenScraper"
 #: Everything the service offers a game, and what the library calls it. The
 #: "support" pictures are of the medium itself and are named by the dump; see
 #: MEDIUM_ART below.
@@ -397,9 +401,11 @@ def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
             continue
         entry = {"url": public_url(url)}
         region = m.get("region")
-        if region:
+        if region == "ss":
+            entry["region"] = SS_OWN_ART_REGION
+        elif region:
             entry["region"] = region_name(region)
-        rank = prefs.index(region) if region in prefs else len(prefs)
+        rank = prefs.index(region) if region in prefs else len(prefs) + (region == "ss")
         art.setdefault(art_type, []).append((rank, entry))
     return {art_type: [e for _, e in sorted(entries, key=lambda x: x[0])] for art_type, entries in art.items()}
 

@@ -26,3 +26,11 @@ def test_a_country_falls_back_to_its_dump_and_the_usual_order():
 def test_without_a_preference_the_dumps_region_leads():
     req = Request({"regions": "Japan"}, {})
     assert ss.preference(req, ss.ART_REGIONS) == ["jp", "wor", "us", "eu"]
+
+
+def test_the_services_own_box_comes_after_every_real_one():
+    import xml.etree.ElementTree as ET
+    elements = [ET.fromstring('<media type="box-2D" region="{}">https://neoclone.screenscraper.fr/api2/'
+                              'mediaJeu.php?media=box-2D({})</media>'.format(r, r)) for r in ("ss", "jp", "us")]
+    boxes = ss.media(elements, {"box-2D": "boxfront"}, ["eu", "wor", "us", "jp"])["boxfront"]
+    assert [b["region"] for b in boxes] == ["USA", "Japan", ss.SS_OWN_ART_REGION]
