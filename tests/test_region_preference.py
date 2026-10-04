@@ -34,3 +34,11 @@ def test_the_services_own_box_comes_after_every_real_one():
                               'mediaJeu.php?media=box-2D({})</media>'.format(r, r)) for r in ("ss", "jp", "us")]
     boxes = ss.media(elements, {"box-2D": "boxfront"}, ["eu", "wor", "us", "jp"])["boxfront"]
     assert [b["region"] for b in boxes] == ["USA", "Japan", ss.SS_OWN_ART_REGION]
+
+
+def test_a_picture_known_to_be_wrong_is_left_out():
+    import xml.etree.ElementTree as ET
+    elements = [ET.fromstring('<media type="box-2D" region="{}">https://neoclone.screenscraper.fr/api2/'
+                              'mediaJeu.php?jeuid=13514&amp;media=box-2D({})</media>'.format(r, r)) for r in ("eu", "us")]
+    boxes = ss.media(elements, {"box-2D": "boxfront"}, ["eu", "wor", "us", "jp"])["boxfront"]
+    assert [b["region"] for b in boxes] == ["USA"]

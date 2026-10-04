@@ -53,6 +53,11 @@ SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() 
 #: from a template around a screenshot. It names a region no player prefers,
 #: so it is shown only where a game has no other picture of its kind.
 SS_OWN_ART_REGION = "ScreenScraper"
+#: Pictures the service files under the wrong kind, by game id and media, left
+#: out so that a rescan doesn't bring them back
+WRONG_MEDIA = {
+    ("13514", "box-2D(eu)"),  # Crazy Taxi (Dreamcast): an inlay, not the box
+}
 #: Everything the service offers a game, and what the library calls it. The
 #: "support" pictures are of the medium itself and are named by the dump; see
 #: MEDIUM_ART below.
@@ -398,6 +403,9 @@ def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
         art_type = mapping.get(m.get("type") or "")
         url = text(m)
         if not art_type or not url:
+            continue
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+        if (query.get("jeuid", [""])[0], query.get("media", [""])[0]) in WRONG_MEDIA:
             continue
         entry = {"url": public_url(url)}
         region = m.get("region")
