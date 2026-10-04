@@ -27,6 +27,8 @@ DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections"
                  "players", "coop", "ratings", "ageratings", "releasedate", "year",
                  "achievements", "manual", "trailer", "originaltitle", "edition", "tags")
 PLATFORM_FIELDS = ("name", "manufacturer", "released", "discontinued", "overview")
+#: The platform Kodi files arcade sets under
+ARCADE_PLATFORM = "arcade"
 
 
 def split_id(candidate_id: str) -> Tuple[str, str]:
@@ -337,6 +339,11 @@ class Universal:
                 if extra.get("trailer"):
                     details["trailer"] = extra["trailer"]
                 merge(details, extra, DETAIL_FIELDS)
+        # An arcade game came in no box, so its cover is the flyer it was sold
+        # to arcades with
+        art = details.get("art") or {}
+        if request.get("platform") == ARCADE_PLATFORM and art.get("flyer"):
+            art["boxfront"] = list(art["flyer"])
         details["category"] = file_category(details.get("category"), request.get("filename"))
         if details.get("genres") and tidy_genres(request.settings):
             details["genres"] = genres.normalise(details["genres"])

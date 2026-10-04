@@ -8,7 +8,8 @@ ScreenScraper's media=box-2D(eu), or the region tags in a libretro-thumbnails
 file name. Where a better box picture of the same kind is stored, the two
 swap places, and the thumb and poster that showed the old one show the new.
 ScreenScraper's own pictures, region "ss", are mostly boxes drawn from a
-template around a screenshot, so they come after every other picture.
+template around a screenshot, and its screen marquees are a game's logo over
+its screenshot, so both come after every other picture of their kind.
 
     prefer_region_art.py DATABASE [--regions Europe,World,USA,Japan]
                          [--originals BACKUP.db ...] [--apply]
@@ -29,15 +30,16 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from resources.lib.providers.screenscraper import SS_OWN_ART_REGION, SS_REGION_NAMES  # noqa: E402
+from resources.lib.providers.screenscraper import SS_OWN_ART_REGION, SS_OWN_MEDIA, SS_REGION_NAMES  # noqa: E402
 
 DEFAULT_REGIONS = "Europe,World,USA,Japan"
 SHOWN_AS = ("thumb", "poster")
-#: Only the box: other pictures swapped to the best region would mostly come
-#: from ScreenScraper, which is slow and counts every fetch against a quota
-KINDS = ("boxfront", "boxback", "boxspine", "box3d", "boxfull")
+#: Only the box and the marquee a cabinet shows: other pictures swapped to the
+#: best region would mostly come from ScreenScraper, which is slow and counts
+#: every fetch against a quota
+KINDS = ("boxfront", "boxback", "boxspine", "box3d", "boxfull", "marquee")
 KEPT = "special://profile/library-art/"
-_SS = re.compile(r"[?&]media=[^&(]*\(([a-z]+)\)")
+_SS = re.compile(r"[?&]media=([^&(]*)\(([a-z]+)\)")
 _TAGS = re.compile(r"\(([^)]*)\)")
 _NUMBERED = re.compile(r"^(.*?)(\d+)$")
 _REGION_WORDS = {name.lower(): name for name in SS_REGION_NAMES.values()}
@@ -47,9 +49,9 @@ def region(url):
     """The region a picture's address names, or None."""
     ss = _SS.search(url)
     if ss:
-        if ss.group(1) == "ss":
+        if ss.group(2) == "ss" or ss.group(1) in SS_OWN_MEDIA:
             return SS_OWN_ART_REGION
-        return SS_REGION_NAMES.get(ss.group(1))
+        return SS_REGION_NAMES.get(ss.group(2))
     name = urllib.parse.unquote(url.rsplit("/", 1)[-1])
     for tag in _TAGS.findall(name):
         for word in (w.strip() for w in tag.split(",")):

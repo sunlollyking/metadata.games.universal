@@ -158,6 +158,19 @@ class DetailsTest(unittest.TestCase):
         b = Scripted("b", [cand("2", "hash")], {"2": dict(self.extra, coop=True)})
         self.assertIs(universal.Universal([a, b], no_log).details("a:1", request("a,b"))["coop"], True)
 
+    def test_an_arcade_games_cover_is_its_flyer(self):
+        game = dict(self.primary, art={"boxfront": [{"url": "a-box"}], "flyer": [{"url": "a-flyer"}]})
+        a = Scripted("a", [cand("1", "hash")], {"1": game})
+        arcade = Request({"title": "Game", "crc32": "deadbeef", "platform": "arcade"}, {"provider_order": "a"})
+        details = universal.Universal([a], no_log).details("a:1", arcade)
+        self.assertEqual(details["art"]["boxfront"], [{"url": "a-flyer"}])
+
+    def test_another_platforms_cover_stays_its_box(self):
+        game = dict(self.primary, art={"boxfront": [{"url": "a-box"}], "flyer": [{"url": "a-flyer"}]})
+        a = Scripted("a", [cand("1", "hash")], {"1": game})
+        details = universal.Universal([a], no_log).details("a:1", request("a"))
+        self.assertEqual(details["art"]["boxfront"], [{"url": "a-box"}])
+
     def test_primary_is_the_candidate_provider_regardless_of_order(self):
         a = Scripted("a", [cand("1", "hash")], {"1": self.primary})
         b = Scripted("b", [cand("2", "hash")], {"2": self.extra})

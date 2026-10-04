@@ -53,6 +53,9 @@ SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() 
 #: from a template around a screenshot. It names a region no player prefers,
 #: so it is shown only where a game has no other picture of its kind.
 SS_OWN_ART_REGION = "ScreenScraper"
+#: Marquees the service draws from a game's logo over its screenshot are its
+#: own pictures in the same way, rather than the one on the cabinet
+SS_OWN_MEDIA = ("screenmarquee", "screenmarqueesmall")
 #: Pictures the service files under the wrong kind, by game id and media, left
 #: out so that a rescan doesn't bring them back
 WRONG_MEDIA = {
@@ -409,11 +412,12 @@ def media(elements: Sequence[ET.Element], mapping: Dict[str, str],
             continue
         entry = {"url": public_url(url)}
         region = m.get("region")
-        if region == "ss":
+        own = region == "ss" or m.get("type") in SS_OWN_MEDIA
+        if own:
             entry["region"] = SS_OWN_ART_REGION
         elif region:
             entry["region"] = region_name(region)
-        rank = prefs.index(region) if region in prefs else len(prefs) + (region == "ss")
+        rank = len(prefs) + 1 if own else prefs.index(region) if region in prefs else len(prefs)
         art.setdefault(art_type, []).append((rank, entry))
     return {art_type: [e for _, e in sorted(entries, key=lambda x: x[0])] for art_type, entries in art.items()}
 

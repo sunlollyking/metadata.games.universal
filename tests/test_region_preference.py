@@ -36,6 +36,17 @@ def test_the_services_own_box_comes_after_every_real_one():
     assert [b["region"] for b in boxes] == ["USA", "Japan", ss.SS_OWN_ART_REGION]
 
 
+def test_a_marquee_drawn_by_the_service_comes_after_the_cabinets():
+    import xml.etree.ElementTree as ET
+    elements = [ET.fromstring('<media type="{}" region="wor">https://neoclone.screenscraper.fr/api2/'
+                              'mediaJeu.php?media={}(wor)</media>'.format(t, t))
+                for t in ("screenmarquee", "screenmarqueesmall", "marquee")]
+    marquees = ss.media(elements, {t: "marquee" for t in ("screenmarquee", "screenmarqueesmall", "marquee")},
+                        ["eu", "wor", "us", "jp"])["marquee"]
+    assert [m["region"] for m in marquees] == ["World", ss.SS_OWN_ART_REGION, ss.SS_OWN_ART_REGION]
+    assert "media=marquee" in marquees[0]["url"]
+
+
 def test_a_picture_known_to_be_wrong_is_left_out():
     import xml.etree.ElementTree as ET
     elements = [ET.fromstring('<media type="box-2D" region="{}">https://neoclone.screenscraper.fr/api2/'
