@@ -153,6 +153,11 @@ class DetailsTest(unittest.TestCase):
                                           "fanart": [{"url": "b-fanart"}]})
         self.assertEqual(b.calls, ["find", "details:2"])
 
+    def test_cooperative_play_is_filled_from_a_second_source(self):
+        a = Scripted("a", [cand("1", "hash")], {"1": self.primary})
+        b = Scripted("b", [cand("2", "hash")], {"2": dict(self.extra, coop=True)})
+        self.assertIs(universal.Universal([a, b], no_log).details("a:1", request("a,b"))["coop"], True)
+
     def test_primary_is_the_candidate_provider_regardless_of_order(self):
         a = Scripted("a", [cand("1", "hash")], {"1": self.primary})
         b = Scripted("b", [cand("2", "hash")], {"2": self.extra})

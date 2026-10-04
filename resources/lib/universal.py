@@ -24,7 +24,7 @@ SERIES_NUMBER = re.compile(r"^(.*?)([0-9]+)$")
 #: What a second provider may fill in where the first said nothing. Art and
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
-                 "players", "ratings", "ageratings", "releasedate", "year",
+                 "players", "coop", "ratings", "ageratings", "releasedate", "year",
                  "achievements", "manual", "trailer", "originaltitle", "edition", "tags")
 PLATFORM_FIELDS = ("name", "manufacturer", "released", "discontinued", "overview")
 

@@ -54,6 +54,15 @@ class LaunchBoxTest(unittest.TestCase):
         self.assertTrue(details["publishers"])
         self.assertEqual(details["year"], 1992)
 
+    def test_cooperative_play_is_reported_on_its_own(self):
+        self.provider.index.connect().execute("UPDATE game SET players = 2, cooperative = 1 WHERE id = 2900")
+        details = self.provider.details("2900", request("Ecco the Dolphin"))
+        self.assertEqual(details["players"], {"min": 1, "max": 2})
+        self.assertIs(details["coop"], True)
+
+    def test_a_game_not_filed_as_cooperative_says_nothing_about_it(self):
+        self.assertNotIn("coop", self.provider.details("2900", request("Ecco the Dolphin")))
+
     def test_pictures_become_library_names_with_full_urls(self):
         art = self.provider.details("2900", request("Ecco the Dolphin"))["art"]
         self.assertIn("boxfront", art)

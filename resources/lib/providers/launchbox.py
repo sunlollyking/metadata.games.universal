@@ -423,7 +423,11 @@ class LaunchBoxProvider(Provider):
             out["year"] = year
             out["releasedate"] = str(row["released"])[:10]
         if row["players"]:
-            out["players"] = {"max": row["players"], "coop": bool(row["cooperative"])}
+            out["players"] = {"min": 1, "max": row["players"]}
+        # The catalogue files most games as not cooperative without anyone
+        # having said so, so only a yes is passed on
+        if row["cooperative"]:
+            out["coop"] = True
         if row["esrb"]:
             out["ageratings"] = [{"board": "ESRB", "rating": row["esrb"]}]
         if row["rating"] is not None and row["votes"]:
