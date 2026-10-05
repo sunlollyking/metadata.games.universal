@@ -19,7 +19,9 @@ back it up first. --regions is the order in Kodi's "Region priority" setting.
 A LaunchBox picture's region is only in the catalogue, so --launchbox names
 the scraper's index of it. A logo is read, so it has an order of its own:
 the United Kingdom's, America's, the World's and Europe's, then one whose
-region is unknown, then Japan's, then any other.
+region is unknown, then Japan's, then any other. A box from outside Asia for
+a game released only in Asia is usually made by a fan, so it never displaces
+one the game shipped in.
 A picture kept in the artwork folder (keep_art.py) no longer has its address;
 --originals names databases from before it was kept, newest first, to read
 it from. A kept picture that loses its place gets its address back and its
@@ -38,6 +40,7 @@ from resources.lib.providers.screenscraper import SS_OWN_ART_REGION, SS_OWN_MEDI
 
 DEFAULT_REGIONS = "Europe,World,USA,Japan"
 SHOWN_AS = ("thumb", "poster")
+ASIA = frozenset(("Japan", "Korea", "China", "Taiwan", "Hong Kong", "Asia"))
 #: Only the box and the marquee a cabinet shows: other pictures swapped to the
 #: best region would mostly come from ScreenScraper, which is slow and counts
 #: every fetch against a quota
@@ -113,6 +116,20 @@ def originals(backups):
     return found
 
 
+def release_regions(db):
+    """The regions each game was released in, by game."""
+    found = collections.defaultdict(set)
+    try:
+        for game, area in db.execute(
+                "SELECT gamerelease.idGame, region.code FROM gamerelease "
+                "JOIN release_region ON release_region.idRelease = gamerelease.idRelease "
+                "JOIN region ON region.idRegion = release_region.idRegion"):
+            found[game].add(area)
+    except sqlite3.OperationalError:
+        pass
+    return found
+
+
 def real_path(kept, database):
     """A special://profile/ picture as a path on this disk."""
     profile = os.path.dirname(os.path.dirname(os.path.abspath(database)))
@@ -143,6 +160,7 @@ def main(argv):
     address = originals(backups)
 
     db = sqlite3.connect(args[0], timeout=60)
+    released = release_regions(db)
     games = collections.defaultdict(dict)
     for game, kind, url in db.execute("select media_id, type, url from art where media_type = 'game'"):
         games[game][kind] = url
@@ -168,7 +186,9 @@ def main(argv):
                 # Art from the collection itself, rather than a scraper, stays
                 if base not in KINDS or len(slots) < 2 or source(base) is None:
                     continue
-                candidates = [k for k in sorted(slots, key=lambda k: (k != base, k)) if source(k)]
+                asian_only = bool(released[game]) and released[game] <= ASIA and base not in READ_KINDS
+                candidates = [k for k in sorted(slots, key=lambda k: (k != base, k)) if source(k)
+                              and not (asian_only and k != base and region(source(k)) not in ASIA)]
                 best = min(candidates, key=lambda k: rank(source(k), priority, base))
                 if best == base or \
                         rank(source(best), priority, base)[0] >= rank(source(base), priority, base)[0]:

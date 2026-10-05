@@ -73,5 +73,42 @@ class LogoTest(unittest.TestCase):
         self.assertEqual(prefer_region_art.region(LAUNCHBOX), "USA")
 
 
+class AsiaOnlyTest(unittest.TestCase):
+    """A Western box for a game released only in Asia is usually a fan's."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.db = os.path.join(self.dir, "Games.db")
+        with sqlite3.connect(self.db) as db:
+            db.execute("CREATE TABLE art (media_id INTEGER, media_type TEXT, type TEXT, url TEXT)")
+            db.execute("CREATE TABLE gamerelease (idRelease INTEGER, idGame INTEGER)")
+            db.execute("CREATE TABLE release_region (idRelease INTEGER, idRegion INTEGER)")
+            db.execute("CREATE TABLE region (idRegion INTEGER, code TEXT)")
+            db.executemany("INSERT INTO region VALUES (?, ?)", [(1, "Japan"), (2, "USA")])
+            # Game 1 came out in Japan only, game 2 in Japan and America
+            db.executemany("INSERT INTO gamerelease VALUES (?, ?)", [(1, 1), (2, 2), (3, 2)])
+            db.executemany("INSERT INTO release_region VALUES (?, ?)", [(1, 1), (2, 1), (3, 2)])
+            for game in (1, 2):
+                db.executemany("INSERT INTO art VALUES (?, 'game', ?, ?)",
+                               [(game, "boxfront", SS.format("box-2D").replace("(wor)", "(jp)")),
+                                (game, "boxfront1", LAUNCHBOX)])
+        prefer_region_art.launchbox_regions.update({"0b0a.png": "North America"})
+
+    def tearDown(self):
+        prefer_region_art.launchbox_regions.clear()
+
+    def box(self, game):
+        with sqlite3.connect(self.db) as db:
+            return db.execute("SELECT url FROM art WHERE media_id = ? AND type = 'boxfront'", (game,)).fetchone()[0]
+
+    def test_a_japan_only_game_keeps_the_box_it_shipped_in(self):
+        prefer_region_art.main([self.db, "--regions", "Europe,USA,Japan", "--apply"])
+        self.assertEqual(self.box(1), SS.format("box-2D").replace("(wor)", "(jp)"))
+
+    def test_a_game_released_in_america_gets_its_american_box(self):
+        prefer_region_art.main([self.db, "--regions", "Europe,USA,Japan", "--apply"])
+        self.assertEqual(self.box(2), LAUNCHBOX)
+
+
 if __name__ == "__main__":
     unittest.main()
