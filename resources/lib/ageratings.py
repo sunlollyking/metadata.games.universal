@@ -26,6 +26,10 @@ VALUES = {
     "CLASS_IND": {"livre": "L"},
 }
 
+# ScreenScraper writes its "JV" ages in French ("+12 ans"); they keep their board
+# and take the "12+" form other boards use
+_FRENCH_AGE = re.compile(r"^\+\s*(\d+)\s*ans?$", re.IGNORECASE)
+
 # Not ratings: magazine review references ScreenScraper files under "SEGA"
 NOT_A_RATING = re.compile(r"^(pro_uk_\d+|force\d+uk|forcemega\d+|masterforce\d+)$", re.IGNORECASE)
 
@@ -46,6 +50,9 @@ def value(board_name: str, rating: str) -> Optional[str]:
     rating = rating.strip()
     if not rating or NOT_A_RATING.match(rating):
         return None
+    french = _FRENCH_AGE.match(rating)
+    if board_name == "JV" and french:
+        return french.group(1) + "+"
     return VALUES.get(board_name, {}).get(_key(rating), rating)
 
 

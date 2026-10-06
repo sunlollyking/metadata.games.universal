@@ -20,6 +20,10 @@ class AgeRatingTest(unittest.TestCase):
                          [{"board": "CLASS_IND", "value": "L"}, {"board": "ACB", "value": "MA15+"},
                           {"board": "CERO", "value": "A"}, {"board": "GRAC", "value": "18"}])
 
+    def test_french_ages_are_written_as_other_boards_write_them(self):
+        self.assertEqual(ageratings.normalise([{"board": "JV", "value": "+12 ans"}]),
+                         [{"board": "JV", "value": "12+"}])
+
     def test_the_first_catalogue_to_rate_a_board_stands(self):
         self.assertEqual(ageratings.normalise([{"board": "ESRB", "value": "E"},
                                                {"board": "ESRB", "value": "T"}]),
