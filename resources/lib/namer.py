@@ -5,6 +5,7 @@ TOSEC (Title (1985)(Publisher)[a][cr Group]) and GoodTools ([!] [b1] [h1]).
 Everything recognised is stripped into fields; what is left is the title.
 """
 import re
+import unicodedata
 from typing import Any, Dict, List
 
 REGIONS = {
@@ -186,7 +187,15 @@ def display_title(title: str) -> str:
     return title
 
 
-_norm_rx = re.compile(r"[^a-z0-9]+")
+# Letters of any script stay: a key of only the ASCII left of "あすか2" is "2", the
+# same as every other game ending in 2
+_norm_rx = re.compile(r"[\W_]+")
+
+
+def _fold(ch: str) -> str:
+    """An accented Latin letter as its plain one; other scripts keep their marks."""
+    base = unicodedata.normalize("NFKD", ch)[:1]
+    return base if base.isascii() else ch
 
 
 def alternate_titles(title: str) -> List[str]:
@@ -220,7 +229,8 @@ def subtitle_head(title: str) -> str:
 
 def normalise(title: str) -> str:
     """Key for exact comparison: lower, article-neutral, punctuation-free."""
-    t = display_title(title).lower()
+    t = unicodedata.normalize("NFKC", display_title(title))
+    t = "".join(_fold(ch) for ch in t).lower()
     t = t.replace("&", " and ")
     t = re.sub(r"\b(the|a|an)\b", " ", t)
     t = _norm_rx.sub("", t)
