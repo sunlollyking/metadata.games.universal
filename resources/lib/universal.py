@@ -1,8 +1,9 @@
 """Orchestrates the providers: ordered lookup, namespaced candidate ids and field merging.
 
-Candidate ids are ``<provider>:<local id>``. A hash or serial match from any
-provider beats a name match from an earlier one, so find asks every
-available provider before settling for name matches. Details come from the
+Candidate ids are ``<provider>:<local id>``. A reviewed alias beats
+everything, as it is there to correct what the services get wrong. Then a
+hash or serial match from any provider beats a name match from an earlier
+one, so find asks every available provider before settling for name matches. Details come from the
 candidate's own provider; the others may fill fields it left empty and add
 art types it lacks, never replacing what is already there.
 """
@@ -276,6 +277,11 @@ class Universal:
         # With one provider there is nothing to merge, so a provider whose
         # details are free can answer both questions in this one call
         alone = len(available) == 1
+        # Answered from local lists, so asking costs nothing
+        for provider in available:
+            aliased = self._ask(provider, "find_alias", request) or []
+            if aliased:
+                return [self._namespaced(provider, c, alone, request) for c in aliased]
         for provider in available:
             if request.bulk and not provider.bulk_safe:
                 self._spend(provider, request.settings)
@@ -321,9 +327,13 @@ class Universal:
         # (1999)(Sega)(US)[!][10S]"; once the disc's serial has named it "Crazy
         # Taxi", that is what the rest can find.
         refined = self._refine(request, details)
+        # A game a reviewed alias names takes nothing from another service's
+        # hash, which is what the alias may be there to overrule
+        aliased = any(str(c.get("id")) == local_id
+                      for c in self._ask(primary, "find_alias", request) or [])
         for provider in self.ordered(request.settings, request.bulk):
             if provider is not primary and provider.name != "arcade":
-                extra = self._lookup(provider, refined, details)
+                extra = self._lookup(provider, refined, details, take_hashes=not aliased)
                 if extra:
                     if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
                         extra.pop("overview", None)
@@ -428,7 +438,8 @@ class Universal:
 
     def _lookup(self, provider: Provider,
                 request: Request,
-                known: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+                known: Optional[Dict[str, Any]] = None,
+                take_hashes: bool = True) -> Optional[Dict[str, Any]]:
         """Details from a provider that was not asked by candidate id.
 
         A hash or a serial settles it. Failing that the title has already
@@ -440,6 +451,8 @@ class Universal:
             self._spend(provider, request.settings)
 
         candidates = self._ask(provider, "find", request) or []
+        if not take_hashes:
+            candidates = [c for c in candidates if c.get("matchedby") not in IDENTITY_MATCHES]
         if not candidates:
             return None
 

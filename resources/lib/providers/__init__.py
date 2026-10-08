@@ -209,6 +209,10 @@ class Provider:
     def find(self, request: Request) -> List[dict]:
         return []
 
+    def find_alias(self, request: Request) -> List[dict]:
+        """The games a reviewed alias list gives for the requested name, if this keeps one."""
+        return []
+
     def details(self, candidate_id: str, request: Request) -> Optional[Dict[str, Any]]:
         return None
 

@@ -359,12 +359,25 @@ class LaunchBoxProvider(Provider):
         rows = db.execute(
             "SELECT g.id, g.name FROM name_key n JOIN game g ON g.id = n.id "
             "WHERE n.platform = ? AND n.key = ?", (platform, key)).fetchall()
-        matchedby = "name"
-        if not rows and (platform, key) in self.aliases:
-            ids = [int_or(i, -1) for i in self.aliases[(platform, key)]]
-            rows = db.execute("SELECT id, name FROM game WHERE id IN ({})".format(
-                ",".join("?" * len(ids))), ids).fetchall()
-            matchedby = "alias"
+        if not rows:
+            return self.find_alias(request)
+        return self._candidates(rows, "name")
+
+    def find_alias(self, request: Request) -> List[dict]:
+        db = self._ensure()
+        if db is None:
+            return []
+        platform = platform_key(request.platform_id(self.name))
+        key = namer.normalise(request.title())
+        if (platform, key) not in self.aliases:
+            return []
+        ids = [int_or(i, -1) for i in self.aliases[(platform, key)]]
+        rows = db.execute("SELECT id, name FROM game WHERE id IN ({})".format(
+            ",".join("?" * len(ids))), ids).fetchall()
+        return self._candidates(rows, "alias")
+
+    @staticmethod
+    def _candidates(rows: List[sqlite3.Row], matchedby: str) -> List[dict]:
         seen = set()
         out = []
         for row in rows:

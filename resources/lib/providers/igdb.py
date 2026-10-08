@@ -163,6 +163,13 @@ class IgdbProvider(OnlineProvider):
                         self._known.setdefault((platform_id, key), row)
                     self._by_id[str(row.get("id"))] = row
 
+    def find_alias(self, request: Request) -> List[dict]:
+        platform_id = self._platform_id(request)
+        title = request.title()
+        key = namer.normalise(title)
+        return [{"id": game_id, "title": title, "score": 0.9, "matchedby": "alias"}
+                for game_id in self.aliases.get((platform_id, key), [])]
+
     def find(self, request: Request) -> List[dict]:
         platform_id = self._platform_id(request)
         title = request.title()
@@ -174,9 +181,9 @@ class IgdbProvider(OnlineProvider):
         if known is not None:
             return [candidate(known)]
 
-        if (platform_id, key) in self.aliases:
-            return [{"id": game_id, "title": title, "score": 0.9, "matchedby": "alias"}
-                    for game_id in self.aliases[(platform_id, key)]]
+        aliased = self.find_alias(request)
+        if aliased:
+            return aliased
 
         body = 'search "{}"; where platforms = ({}); limit 50;'.format(apicalypse(title), platform_id)
         games = self._query("games", SEARCH_FIELDS, body, request)

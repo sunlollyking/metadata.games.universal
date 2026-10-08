@@ -27,11 +27,12 @@ def cand(local_id, matchedby, title="Game"):
 
 
 class Scripted(Provider):
-    def __init__(self, name, candidates=(), details=None, platform=None, keys=()):
+    def __init__(self, name, candidates=(), details=None, platform=None, keys=(), aliases=()):
         super().__init__(no_log)
         self.name = name
         self.required_settings = tuple(keys)
         self.candidates = list(candidates)
+        self.aliases = list(aliases)
         self.detail_records = dict(details or {})
         self.platform_record = platform
         self.calls = []
@@ -39,6 +40,9 @@ class Scripted(Provider):
     def find(self, request):
         self.calls.append("find")
         return [dict(c) for c in self.candidates]
+
+    def find_alias(self, request):
+        return [dict(c) for c in self.aliases]
 
     def details(self, candidate_id, request):
         self.calls.append("details:" + candidate_id)
@@ -123,6 +127,13 @@ class FindTest(unittest.TestCase):
     def test_nothing_matches(self):
         self.assertEqual(universal.Universal([Scripted("a"), Scripted("b")], no_log).find(request()), [])
 
+    def test_a_reviewed_alias_beats_an_earlier_hash(self):
+        a = Scripted("a", [cand("h", "hash")])
+        b = Scripted("b", [], aliases=[cand("x", "alias")])
+        found = universal.Universal([a, b], no_log).find(request("a,b"))
+        self.assertEqual([c["id"] for c in found], ["b:x"])
+        self.assertEqual(a.calls, [])
+
 
 class DetailsTest(unittest.TestCase):
     def setUp(self):
@@ -199,6 +210,20 @@ class DetailsTest(unittest.TestCase):
         details = universal.Universal([a, b], no_log).details("a:1", request("a,b"))
         self.assertEqual(details["overview"], "The 1994 one")
         self.assertEqual(b.calls, ["find", "details:3"])
+
+    def test_a_game_found_by_alias_takes_nothing_from_a_hash(self):
+        a = Scripted("a", [], {"1": dict(self.primary)}, aliases=[cand("1", "alias")])
+        b = Scripted("b", [cand("2", "hash", "Other Title")], {"2": self.extra})
+        details = universal.Universal([a, b], no_log).details("a:1", request("a,b"))
+        self.assertEqual(details["overview"], "")
+        self.assertNotIn("fanart", details["art"])
+        self.assertEqual(b.calls, ["find"])
+
+    def test_a_game_found_by_alias_still_takes_a_name_match(self):
+        a = Scripted("a", [], {"1": dict(self.primary)}, aliases=[cand("1", "alias")])
+        b = Scripted("b", [cand("2", "name")], {"2": self.extra})
+        details = universal.Universal([a, b], no_log).details("a:1", request("a,b"))
+        self.assertEqual(details["overview"], "From b")
 
     def test_single_name_match_supplements(self):
         a = Scripted("a", [cand("1", "hash")], {"1": dict(self.primary)})
