@@ -42,6 +42,15 @@ class LaunchBoxTest(unittest.TestCase):
     def test_a_name_from_another_platform_is_not_offered(self):
         self.assertEqual(self.provider.find(request("Ecco the Dolphin", {"launchbox": "Atari 800"})), [])
 
+    def test_a_name_the_catalogue_lacks_is_found_through_an_alias(self):
+        aliases = os.path.join(self.dir, "aliases.tsv")
+        with open(aliases, "w", encoding="utf-8") as f:
+            f.write("# comment\nSega Genesis\tエコー・ザ・ドルフィン\t2900\n")
+        self.provider.aliases = launchbox.read_aliases(aliases)
+        found = self.provider.find(request("エコー・ザ・ドルフィン"))
+        self.assertEqual([(c["id"], c["matchedby"]) for c in found], [("2900", "alias")])
+        self.assertEqual(self.provider.find(request("エコー・ザ・ドルフィン", {"launchbox": "Atari 800"})), [])
+
     def test_a_name_that_is_not_in_the_catalogue_is_not_offered(self):
         self.assertEqual(self.provider.find(request("No Such Game At All")), [])
 
