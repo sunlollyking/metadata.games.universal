@@ -124,6 +124,27 @@ def medium_art_type(request: "Request") -> str:
     return "disc" if extension in DISC_EXTENSIONS else "cartridge"
 
 
+#: Where providers keep names collections use that their catalogue does not
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+
+
+def read_aliases(path: str, platform_of: Callable[[str], str] = str) -> Dict[Tuple[str, str], List[str]]:
+    """(platform, name key) to catalogue ids, from lines of platform, name and id"""
+    aliases: Dict[Tuple[str, str], List[str]] = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                platform, name, game_id = line.rstrip("\n").split("\t")[:3]
+                key = namer.normalise(name)
+                if key:
+                    aliases.setdefault((platform_of(platform), key), []).append(game_id)
+    except OSError:
+        pass
+    return aliases
+
+
 def platform_key(name: str) -> str:
     return _platform_key_rx.sub("", name.lower().replace("&", " and "))
 

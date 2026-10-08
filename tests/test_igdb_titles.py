@@ -222,3 +222,13 @@ class CompilationTest(unittest.TestCase):
     def test_an_add_on_is_still_refused(self):
         self.assertFalse(igdb.is_the_game({"game_type": 1}))   # dlc
         self.assertFalse(igdb.is_the_game({"game_type": 2}))   # expansion
+
+
+class AliasTest(unittest.TestCase):
+    def test_a_name_the_search_misses_is_found_through_an_alias(self):
+        provider = Scripted([])
+        provider.aliases = {("18", namer.normalise("ブラックレインボウ")): ["4242"]}
+        found = provider.find(request("ブラックレインボウ"))
+        self.assertEqual([(c["id"], c["matchedby"]) for c in found], [("4242", "alias")])
+        # Answered without asking IGDB at all
+        self.assertEqual(provider.bodies, [])

@@ -46,7 +46,7 @@ class LaunchBoxTest(unittest.TestCase):
         aliases = os.path.join(self.dir, "aliases.tsv")
         with open(aliases, "w", encoding="utf-8") as f:
             f.write("# comment\nSega Genesis\tエコー・ザ・ドルフィン\t2900\n")
-        self.provider.aliases = launchbox.read_aliases(aliases)
+        self.provider.aliases = launchbox.read_aliases(aliases, launchbox.platform_key)
         found = self.provider.find(request("エコー・ザ・ドルフィン"))
         self.assertEqual([(c["id"], c["matchedby"]) for c in found], [("2900", "alias")])
         self.assertEqual(self.provider.find(request("エコー・ザ・ドルフィン", {"launchbox": "Atari 800"})), [])

@@ -22,14 +22,17 @@ never IGDB's own ranking. The field lists of the current schema are tried
 first and those of the older one on a 400. Image URLs are
 https://images.igdb.com/igdb/image/upload/t_<size>/<image_id>.jpg.
 """
+import os
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
 from .. import namer
 from .. import net
-from . import OnlineProvider, Request, platform_key, platform_keys, platform_names
+from . import DATA_DIR, OnlineProvider, Request, platform_key, platform_keys, platform_names, read_aliases
 
 BASE_URL = "https://api.igdb.com/v4/"
+#: Names collections use that IGDB's search does not find, each checked by hand
+ALIASES_PATH = os.path.join(DATA_DIR, "igdb_aliases.tsv")
 #: How Kodi plays a YouTube video, through the YouTube add-on
 TRAILER = "plugin://plugin.video.youtube/play/?video_id={}"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
@@ -123,6 +126,7 @@ class IgdbProvider(OnlineProvider):
         #: What a batch asked about, by platform and normalised name, and by id
         self._known: Dict[tuple, dict] = {}
         self._by_id: Dict[str, dict] = {}
+        self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
         """Ask about a whole folder's titles at once.
@@ -169,6 +173,10 @@ class IgdbProvider(OnlineProvider):
         known = self._known.get((platform_id, key))
         if known is not None:
             return [candidate(known)]
+
+        if (platform_id, key) in self.aliases:
+            return [{"id": game_id, "title": title, "score": 0.9, "matchedby": "alias"}
+                    for game_id in self.aliases[(platform_id, key)]]
 
         body = 'search "{}"; where platforms = ({}); limit 50;'.format(apicalypse(title), platform_id)
         games = self._query("games", SEARCH_FIELDS, body, request)

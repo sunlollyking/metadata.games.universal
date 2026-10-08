@@ -32,13 +32,13 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from .. import namer
 from ..genres import split as split_genres
-from . import Provider, Request
+from . import DATA_DIR, Provider, Request, read_aliases
 from .arcade import clean_title
 
 METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
 #: Names collections use that the catalogue does not, each checked by hand:
 #: Japanese titles where the catalogue has romaji, and other spellings
-ALIASES_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "launchbox_aliases.tsv")
+ALIASES_PATH = os.path.join(DATA_DIR, "launchbox_aliases.tsv")
 IMAGE_URL = "https://images.launchbox-app.com/{}"
 USER_AGENT = "Kodi metadata.games.universal"
 ARCHIVE_MEMBER = "Metadata.xml"
@@ -230,23 +230,6 @@ class Index:
         self.log("launchbox: indexed {} games".format(games), False)
 
 
-def read_aliases(path: str) -> Dict[Tuple[str, str], List[int]]:
-    """(platform, name key) to game ids, from lines of platform, name and id"""
-    aliases: Dict[Tuple[str, str], List[int]] = {}
-    try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                if line.startswith("#") or not line.strip():
-                    continue
-                platform, name, game_id = line.rstrip("\n").split("\t")[:3]
-                key = namer.normalise(name)
-                if key:
-                    aliases.setdefault((platform_key(platform), key), []).append(int_or(game_id, -1))
-    except OSError:
-        pass
-    return aliases
-
-
 def _remove(path: str) -> None:
     try:
         os.remove(path)
@@ -353,7 +336,7 @@ class LaunchBoxProvider(Provider):
         super().__init__(log)
         self.index = Index(os.path.join(cache_dir or "", "launchbox", INDEX_NAME), log)
         self._tried_to_build = False
-        self.aliases = read_aliases(aliases_path)
+        self.aliases = read_aliases(aliases_path, platform_key)
 
     def available(self, settings: Dict[str, Any]) -> bool:
         return str(settings.get("launchbox_bulk", "true")).lower() not in ("false", "0")
@@ -378,7 +361,7 @@ class LaunchBoxProvider(Provider):
             "WHERE n.platform = ? AND n.key = ?", (platform, key)).fetchall()
         matchedby = "name"
         if not rows and (platform, key) in self.aliases:
-            ids = self.aliases[(platform, key)]
+            ids = [int_or(i, -1) for i in self.aliases[(platform, key)]]
             rows = db.execute("SELECT id, name FROM game WHERE id IN ({})".format(
                 ",".join("?" * len(ids))), ids).fetchall()
             matchedby = "alias"
