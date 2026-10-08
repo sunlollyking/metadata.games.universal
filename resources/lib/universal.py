@@ -7,16 +7,19 @@ one, so find asks every available provider before settling for name matches. Det
 candidate's own provider; the others may fill fields it left empty and add
 art types it lacks, never replacing what is already there.
 """
+import os
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from .budget import Budget
 from . import ageratings, companies, genres
 from . import namer
-from .providers import Log, OnlineProvider, Provider, Request
+from .providers import DATA_DIR, Log, OnlineProvider, Provider, Request
 from .providers.arcade import members_of
 
 IDENTITY_MATCHES = ("hash", "serial")
+#: Files a reviewed list says are not the catalogues' games of the same name
+EXCLUSIONS_PATH = os.path.join(DATA_DIR, "name_exclusions.tsv")
 #: A dump the catalogue marks as one of these was made from another game. A
 #: service that files the two together answers about the one it was made from.
 UNOFFICIAL = frozenset(("pirate", "unlicensed", "aftermarket"))
@@ -82,6 +85,23 @@ def names_another_game(known_title: str, offered_title: str, licence: str) -> bo
         return True
 
     return False
+
+
+def read_exclusions(path: str) -> Set[Tuple[str, str]]:
+    """The (platform, file) pairs a reviewed list says no name match is right for.
+
+    Each line holds a Kodi platform and a file or folder name, tags included.
+    """
+    exclusions: Set[Tuple[str, str]] = set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) >= 2 and not line.startswith("#"):
+                    exclusions.add((fields[0].strip(), namer.normalise(fields[1])))
+    except OSError:
+        pass
+    return exclusions
 
 
 def derived_version(dump: Optional[Dict[str, Any]], title: str, request: Request) -> Optional[dict]:
@@ -179,10 +199,12 @@ def provider_order(settings: Dict[str, Any]) -> List[str]:
 class Universal:
     """The scraper behind the entry point, built once per process from a provider list."""
 
-    def __init__(self, providers: Sequence[Provider], log: Log, cache_dir: str = ""):
+    def __init__(self, providers: Sequence[Provider], log: Log, cache_dir: str = "",
+                 exclusions_path: str = EXCLUSIONS_PATH):
         self.providers: Dict[str, Provider] = {p.name: p for p in providers}
         self.log = log
         self.cache_dir = cache_dir
+        self.exclusions = read_exclusions(exclusions_path)
         self._budgets: Dict[str, Budget] = {}
         #: Sources that answered "no allowance left" during this run
         self._exhausted: set = set()
@@ -282,6 +304,8 @@ class Universal:
             aliased = self._ask(provider, "find_alias", request) or []
             if aliased:
                 return [self._namespaced(provider, c, alone, request) for c in aliased]
+        # Homebrew Columns and the game it copies share a name and nothing else
+        excluded = (request.get("platform"), namer.normalise(request.get("filename"))) in self.exclusions
         for provider in available:
             if request.bulk and not provider.bulk_safe:
                 self._spend(provider, request.settings)
@@ -289,6 +313,8 @@ class Universal:
             identity = [c for c in candidates if c.get("matchedby") in IDENTITY_MATCHES]
             if identity:
                 return [self._namespaced(provider, c, alone, request) for c in identity]
+            if excluded:
+                candidates = [c for c in candidates if c.get("matchedby") != "name"]
             if candidates and not named:
                 named = [self._namespaced(provider, c, alone, request) for c in candidates]
         return named

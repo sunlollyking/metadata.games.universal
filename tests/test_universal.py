@@ -127,6 +127,32 @@ class FindTest(unittest.TestCase):
     def test_nothing_matches(self):
         self.assertEqual(universal.Universal([Scripted("a"), Scripted("b")], no_log).find(request()), [])
 
+    def test_an_excluded_file_takes_no_name_match(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write("x68000\tColumns (Gyagon)\n")
+        a = Scripted("a", [cand("1", "name", "Columns")])
+        b = Scripted("b", [cand("2", "name", "Columns")])
+        scraper = universal.Universal([a, b], no_log, exclusions_path=f.name)
+        os.unlink(f.name)
+        excluded = Request({"title": "Columns", "filename": "Columns (Gyagon)", "platform": "x68000"},
+                           {"provider_order": "a,b"})
+        self.assertEqual(scraper.find(excluded), [])
+        other = Request({"title": "Columns", "filename": "Columns (SystemSoft)", "platform": "x68000"},
+                        {"provider_order": "a,b"})
+        self.assertEqual([c["id"] for c in scraper.find(other)], ["a:1"])
+
+    def test_an_excluded_file_still_takes_a_hash(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write("x68000\tColumns (Gyagon)\n")
+        a = Scripted("a", [cand("1", "hash", "Columns")])
+        scraper = universal.Universal([a], no_log, exclusions_path=f.name)
+        os.unlink(f.name)
+        req = Request({"title": "Columns", "filename": "Columns (Gyagon)", "platform": "x68000"},
+                      {"provider_order": "a"})
+        self.assertEqual([c["id"] for c in scraper.find(req)], ["a:1"])
+
     def test_a_reviewed_alias_beats_an_earlier_hash(self):
         a = Scripted("a", [cand("h", "hash")])
         b = Scripted("b", [], aliases=[cand("x", "alias")])
