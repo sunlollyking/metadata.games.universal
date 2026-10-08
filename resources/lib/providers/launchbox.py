@@ -36,8 +36,8 @@ from . import Provider, Request
 from .arcade import clean_title
 
 METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
-#: Names collections use that the catalogue does not, each checked by hand: a
-#: PC-98 set filed under its Japanese titles where the catalogue has romaji
+#: Names collections use that the catalogue does not, each checked by hand:
+#: Japanese titles where the catalogue has romaji, and other spellings
 ALIASES_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "launchbox_aliases.tsv")
 IMAGE_URL = "https://images.launchbox-app.com/{}"
 USER_AGENT = "Kodi metadata.games.universal"

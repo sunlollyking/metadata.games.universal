@@ -1,5 +1,5 @@
 # LaunchBox platform	name a collection uses	LaunchBox game id
-# Each line was checked by hand: a romaji or English catalogue name against the Japanese title.
+# Each line was checked by hand against the catalogue name: a Japanese title against its romaji, or another spelling of the same name.
 NEC PC-9801	101回目のアプローチショット	203762
 NEC PC-9801	31 いわゆるひとつの超らぶりぃな冒険活劇	187031
 NEC PC-9801	38万キロの虚空	185071
@@ -619,3 +619,18 @@ NEC PC-9801	麻雀美少女伝リップル	192060
 NEC PC-9801	麻雀遊園地	187442
 NEC PC-9801	黄昏の境界	197870
 NEC PC-9801	龍王三国志	189500
+NEC PC-8801	Majaventure II - Zenkoku Onsen Mahjong	197006
+NEC PC-8801	Saotome Military Academy of U.N. Space Force Nyuugaku Annai	462447
+NEC PC-8801	Shougi Taishou 88	465941
+NEC PC-8801	The Dragon Princess	207925
+NEC PC-8801	Tunnels & Trolls	188701
+NEC PC-8801	Universal Adventurer	207613
+Sharp X68000	Alianshuu	184354
+Sharp X68000	Asteroid	184369
+Sharp X68000	Forty One Game	190192
+Sharp X68000	Iguchi Yumi no St. Luna Gakuen - Chikoku Daisensou no Maki	191720
+Sharp X68000	Pachislo Divels XX	190581
+Sharp X68000	Pnincess Maker	157666
+Sharp X68000	The Sarumane of Tetris	190600
+Sharp X68000	Vulqar	192364
+Sharp X68000	Youjuu Senki - A.D. 2048	157750
