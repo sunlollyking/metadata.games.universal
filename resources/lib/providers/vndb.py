@@ -10,7 +10,8 @@ it without asking again.
 A match is by name only, so it is only made against the machine's own list:
 VNDB knows what was released on the PC-98, and a name that matches there is
 very likely the game. A near match must agree on every number in the name,
-because "Dragon Knight 3" and "Dragon Knight" are close and different games.
+because "Dragon Knight 3" and "Dragon Knight" are close and different games,
+and may not add a word to it, because "SD Toki no Kagi" is another game too.
 """
 import difflib
 import json
@@ -48,6 +49,11 @@ ADULT_RATING = 1.0
 #: A near match has to be this close, and long enough for closeness to mean something
 CLOSE_RATIO = 0.9
 CLOSE_MIN_LENGTH = 5
+#: Each kana is a syllable, so in a short name written only in kana one character
+#: off is another word: "アランティア" is not "アトランティア"
+KANA_CLOSE_MIN_LENGTH = 8
+
+_KANA = re.compile(r"[\u3040-\u30ff]+")
 
 _DIGITS = re.compile(r"\d+")
 #: A sequel numbered in Roman numerals, as VNDB and Japanese collections often
@@ -75,6 +81,11 @@ def name_key(name: str) -> str:
     """A name as compared here, with its sequel number in digits."""
     plain = unicodedata.normalize("NFKC", name)
     return namer.normalise(_ROMAN.sub(lambda m: _ROMAN_VALUES[m.group(1)], plain))
+
+
+def adds_to(title: str, key: str) -> bool:
+    """Whether a name is the title with more before or after it, as an edition's name is."""
+    return len(key) > len(title) and (key.startswith(title) or key.endswith(title))
 
 
 def names(vn: Dict[str, Any]) -> List[str]:
@@ -105,11 +116,12 @@ class VndbProvider(OnlineProvider):
         if exact:
             return [self._candidate(vn, 0.9) for vn in exact]
         close = []
-        if len(title) >= CLOSE_MIN_LENGTH:
+        min_length = KANA_CLOSE_MIN_LENGTH if _KANA.fullmatch(title) else CLOSE_MIN_LENGTH
+        if len(title) >= min_length:
             numbers = _DIGITS.findall(title)
             for vn in entries:
                 for key in names(vn):
-                    if _DIGITS.findall(key) != numbers:
+                    if _DIGITS.findall(key) != numbers or adds_to(title, key):
                         continue
                     ratio = difflib.SequenceMatcher(None, title, key).ratio()
                     if ratio >= CLOSE_RATIO:

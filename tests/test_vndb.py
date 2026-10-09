@@ -33,6 +33,14 @@ KNIGHT_3 = {
     "id": "v2387", "title": "Dragon Knight III", "alttitle": "ドラゴンナイトIII",
     "titles": [], "released": "1991-07-26", "developers": [], "image": None, "description": "",
 }
+ATLANTIA = {
+    "id": "v20512", "title": "Atlantia", "alttitle": "アトランティア", "titles": [],
+    "released": "1994", "developers": [], "image": None, "description": "",
+}
+TOKI = {
+    "id": "v31120", "title": "SD Toki no Kagi", "alttitle": "SD時の鍵", "titles": [],
+    "released": "1989", "developers": [], "image": None, "description": "",
+}
 NEGAI = {
     "id": "v29124", "title": "Mittsu no Negai", "alttitle": "3つの願い", "titles": [],
     "released": "1995", "developers": [],
@@ -48,7 +56,7 @@ def request(title, platform="pc98", **settings):
 class VndbTest(unittest.TestCase):
     def setUp(self):
         self.net = FakeNet().install(self)
-        pages = [{"results": [KOKUU, KNIGHT, KNIGHT_3], "more": True}, {"results": [NEGAI], "more": False}]
+        pages = [{"results": [KOKUU, KNIGHT, KNIGHT_3], "more": True}, {"results": [NEGAI, ATLANTIA, TOKI], "more": False}]
         self.net.route(lambda method, url, body: "vndb" in url and json.loads(body).get("page") == 1, pages[0])
         self.net.route(lambda method, url, body: "vndb" in url and json.loads(body).get("page") == 2, pages[1])
         self.provider = vndb.VndbProvider(no_log, tempfile.mkdtemp())
@@ -71,6 +79,13 @@ class VndbTest(unittest.TestCase):
     def test_a_near_name_must_agree_on_its_numbers(self):
         self.assertEqual(self.provider.find(request("Dragon Knight 4")), [])
         self.assertEqual([c["id"] for c in self.provider.find(request("38 Man Kiro no Kokuu"))], ["v6994"])
+
+    def test_a_near_name_may_not_add_a_word(self):
+        self.assertEqual(self.provider.find(request("Toki no Kagi")), [])
+
+    def test_a_short_kana_name_must_match_exactly(self):
+        self.assertEqual(self.provider.find(request("アランティア")), [])
+        self.assertEqual([c["id"] for c in self.provider.find(request("アトランティア"))], ["v20512"])
 
     def test_a_machine_vndb_has_no_list_for_is_not_asked(self):
         self.assertEqual(self.provider.find(request("38万キロの虚空", platform="nes")), [])
