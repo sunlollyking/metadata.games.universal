@@ -1,6 +1,6 @@
 # metadata.games.universal
 
-A game metadata scraper for Kodi that treats eight catalogues as one.
+A game metadata scraper for Kodi that treats nine catalogues as one.
 
 It identifies a ROM or disc image by checksum, serial or exact name, then
 gathers the details and artwork from every source that recognises it. No single
@@ -56,8 +56,9 @@ files it away.
 | TheGamesDB | free API key | hash, name | A thousand lookups a month; budgeted, see below |
 | REG-Vault | nothing | name | Box art and fanart. Single games only, not scans |
 | LaunchBox | nothing | name | One bulk download, then answered offline |
+| VNDB | nothing | name | Visual novels on Japanese computers and consoles, from each machine's own list |
 
-Only libretro, Wikidata, REG-Vault and LaunchBox work without credentials. A
+Only libretro, Wikidata, REG-Vault, LaunchBox and VNDB work without credentials. A
 source whose keys are missing is skipped, and says so once per scan rather than
 silently doing nothing.
 

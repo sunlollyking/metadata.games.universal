@@ -20,7 +20,7 @@ from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
 from resources.lib.providers import (  # noqa: E402
     arcade, arcadedb, igdb, launchbox, libretro, regvault, retroachievements, screenscraper,
-    thegamesdb, wikidata)
+    thegamesdb, vndb, wikidata)
 
 #: How long a batch may spend on the web before it finishes offline
 BATCH_SECONDS = 90
@@ -28,11 +28,12 @@ BATCH_SECONDS = 90
 ADDON_ID = "metadata.games.universal"
 CACHE_DIR_ENV = "METADATA_GAMES_LIBRETRO_CACHE_DIR"
 DEFAULTS: Dict[str, Any] = {
-    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox",
+    "provider_order": "libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox,vndb",
     "launchbox_bulk": True,
     "cache_days": 30,
     "download": True,
     "tidy_genres": True,
+    "vndb_adult_covers": False,
     "ra_username": "",
     "ra_api_key": "",
     "ss_devid": "",
@@ -113,6 +114,7 @@ def scraper() -> universal.Universal:
                     xbmc.getCondVisibility("System.HasAddon({})".format(addon))),
                 thumbnails=lambda: libretro_provider.store.thumbnails(arcade.THUMB_PLATFORM)),
             arcadedb.ArcadeDbProvider(log, cache_dir),
+            vndb.VndbProvider(log, cache_dir),
         ]
         _universal = universal.Universal(providers, log, cache_dir)
         _cache_dir = cache_dir

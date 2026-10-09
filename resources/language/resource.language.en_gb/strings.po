@@ -135,3 +135,11 @@ msgstr ""
 msgctxt "#30048"
 msgid "The catalogues spell one genre many ways - \"RPG\", \"Role Playing Game\", \"Role-playing (RPG)\" - and each spelling would otherwise be its own genre in the library. With this on, every genre is given one name, sports of every kind are filed under Sports, and labels that say nothing about the game, such as \"Various\", are left out. Turn it off to keep each catalogue's own names."
 msgstr ""
+
+msgctxt "#30049"
+msgid "Use adult covers from VNDB"
+msgstr ""
+
+msgctxt "#30050"
+msgid "VNDB describes the visual novels and adventure games of Japanese computers, and many of them are adult games. Its voters rate each cover, and with this off a cover rated sexual or violent is left out and the game keeps the picture another source gives it, or none. The description is used either way."
+msgstr ""

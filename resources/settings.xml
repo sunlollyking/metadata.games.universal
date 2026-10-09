@@ -5,7 +5,7 @@
       <group id="1">
         <setting id="provider_order" type="string" label="30005" help="30006">
           <level>0</level>
-          <default>libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox</default>
+          <default>libretro,retroachievements,wikidata,igdb,screenscraper,thegamesdb,regvault,launchbox,vndb</default>
           <control type="edit" format="string"/>
         </setting>
         <setting id="launchbox_bulk" type="boolean" label="30045" help="30046">
@@ -16,6 +16,11 @@
         <setting id="tidy_genres" type="boolean" label="30047" help="30048">
           <level>0</level>
           <default>true</default>
+          <control type="toggle"/>
+        </setting>
+        <setting id="vndb_adult_covers" type="boolean" label="30049" help="30050">
+          <level>0</level>
+          <default>false</default>
           <control type="toggle"/>
         </setting>
         <setting id="download" type="boolean" label="30001" help="30002">
