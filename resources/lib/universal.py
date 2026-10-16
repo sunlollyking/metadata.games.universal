@@ -87,6 +87,26 @@ def names_another_game(known_title: str, offered_title: str, licence: str) -> bo
     return False
 
 
+def borrowed_serial(candidate: Dict[str, Any], request: Request) -> bool:
+    """Whether a serial match names a game the file's own name has nothing to do with.
+
+    A prototype, a homebrew disc or an unreleased game often carries the header
+    of a shipped one: many self-booting Dreamcast discs say they are Crazy Taxi.
+    The serial then names that game. A hash is the dump itself and is never in
+    doubt, and a file whose name says nothing leaves nothing to compare.
+    """
+    if candidate.get("matchedby") != "serial":
+        return False
+    own = request.title()
+    offered = str(candidate.get("title") or "")
+    if not own or not offered or namer.generic_name(own):
+        return False
+    a, b = namer.normalise(own), namer.normalise(offered)
+    if a in b or b in a:
+        return False
+    return not namer.title_words(own) & namer.title_words(offered)
+
+
 def read_exclusions(path: str) -> Set[Tuple[str, str]]:
     """The (platform, file) pairs a reviewed list says no name match is right for.
 
@@ -310,6 +330,7 @@ class Universal:
             if request.bulk and not provider.bulk_safe:
                 self._spend(provider, request.settings)
             candidates = self._ask(provider, "find", request) or []
+            candidates = [c for c in candidates if not borrowed_serial(c, request)]
             identity = [c for c in candidates if c.get("matchedby") in IDENTITY_MATCHES]
             if identity:
                 return [self._namespaced(provider, c, alone, request) for c in identity]
@@ -476,7 +497,7 @@ class Universal:
         if request.bulk and not provider.bulk_safe:
             self._spend(provider, request.settings)
 
-        candidates = self._ask(provider, "find", request) or []
+        candidates = [c for c in self._ask(provider, "find", request) or [] if not borrowed_serial(c, request)]
         if not take_hashes:
             candidates = [c for c in candidates if c.get("matchedby") not in IDENTITY_MATCHES]
         if not candidates:

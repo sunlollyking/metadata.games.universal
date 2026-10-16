@@ -1,6 +1,7 @@
 """A file named for its part in a dump, like every GD-ROM's disc.gdi, names no game."""
 import xml.etree.ElementTree as ET
 
+from resources.lib import namer
 from resources.lib.providers import Request
 from resources.lib.providers import screenscraper as ss
 
@@ -18,12 +19,12 @@ def provider():
 
 def test_dump_part_names_are_generic():
     for name in ("disc.gdi", "DISC.GDI", "track01.bin", "track 03.raw", "disk1.img", "game.cue", "cd.iso"):
-        assert ss.generic_filename(name), name
+        assert namer.generic_name(name), name
 
 
 def test_game_names_are_not_generic():
     for name in ("Crazy Taxi (USA).gdi", "Disc Station Vol. 1.cue", "Discworld (Europe).cue", "track.bin.zip"):
-        assert not ss.generic_filename(name), name
+        assert not namer.generic_name(name), name
 
 
 def test_a_generic_file_is_not_looked_up_by_name():

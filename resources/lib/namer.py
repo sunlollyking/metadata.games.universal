@@ -4,9 +4,10 @@ Handles No-Intro / Redump (Title (Region) (Langs) (Rev 1) (Beta) ...),
 TOSEC (Title (1985)(Publisher)[a][cr Group]) and GoodTools ([!] [b1] [h1]).
 Everything recognised is stripped into fields; what is left is the title.
 """
+import os
 import re
 import unicodedata
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 
 REGIONS = {
     "usa": "USA", "us": "USA", "u": "USA", "canada": "Canada",
@@ -241,6 +242,22 @@ def normalise(title: str) -> str:
 # a hack after the revision it was made from: "Sonic the Hedgehog 2 Rev 1 [h11]"
 _NUMBERED_HACK = re.compile(r"\[h\d+[a-z]?\]", re.IGNORECASE)
 _TRAILING_REVISION = re.compile(r"\s+(?:rev\s*[a-z0-9]+|v\d+(?:\.\d+)*)$", re.IGNORECASE)
+
+
+#: A file named for its part in a dump rather than for the game, as every
+#: GD-ROM's "disc.gdi" is
+_GENERIC_NAME = re.compile(r"(disc|disk|cd|game|image|track)[ _-]?\d*", re.IGNORECASE)
+
+
+def generic_name(name: str) -> bool:
+    """Whether a file name, or a title read from one, names no game."""
+    return bool(_GENERIC_NAME.fullmatch(os.path.splitext(os.path.basename(name or ""))[0].strip()))
+
+
+def title_words(title: str) -> Set[str]:
+    """The words of a title that could tell one game from another."""
+    t = "".join(_fold(ch) for ch in unicodedata.normalize("NFKC", display_title(title))).lower()
+    return {w for w in re.findall(r"[a-z0-9]+", t) if len(w) > 2 and not w.isdigit() and w not in ("the", "and")}
 
 
 def without_revision(title: str) -> str:
