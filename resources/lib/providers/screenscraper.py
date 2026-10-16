@@ -21,6 +21,7 @@ per region; the caller's ``regions`` come first, then ScreenScraper's
 default region, world, US, Europe and Japan. Media URLs carry the
 credentials ScreenScraper needs to serve them.
 """
+import os
 import re
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -53,6 +54,9 @@ SS_REGION_CODES = {name.lower(): code for code, name in SS_REGION_NAMES.items() 
 #: from a template around a screenshot. It names a region no player prefers,
 #: so it is shown only where a game has no other picture of its kind.
 SS_OWN_ART_REGION = "ScreenScraper"
+#: A file named for its part in a dump rather than for the game, as every
+#: GD-ROM's "disc.gdi" is. Thousands of records hold one, so it identifies none.
+GENERIC_FILE = re.compile(r"(disc|disk|cd|game|image|track)[ _-]?\d*", re.IGNORECASE)
 #: Marquees the service draws from a game's logo over its screenshot, and the
 #: logo rendered on carbon or steel, are its own pictures in the same way
 SS_OWN_MEDIA = ("screenmarquee", "screenmarqueesmall", "wheel-carbon", "wheel-steel")
@@ -165,7 +169,7 @@ class ScreenScraperProvider(OnlineProvider):
             if value:
                 out[param] = value
         filename = request.get("filename").strip()
-        if filename:
+        if filename and not generic_filename(filename):
             out["romnom"] = filename
             if request.get("size").strip().isdigit():
                 out["romtaille"] = request.get("size").strip()
@@ -276,9 +280,13 @@ def native_name(jeu: ET.Element) -> str:
     return ""
 
 
+def generic_filename(filename: str) -> bool:
+    return bool(GENERIC_FILE.fullmatch(os.path.splitext(os.path.basename(filename))[0].strip()))
+
+
 def name_matches(jeu: ET.Element, request: Request) -> bool:
     filename = request.get("filename").strip().casefold()
-    if filename:
+    if filename and not generic_filename(filename):
         roms = [jeu.find("rom")] + jeu.findall("roms/rom")
         if any(r is not None and field(r, "romfilename").casefold() == filename for r in roms):
             return True
