@@ -391,3 +391,39 @@ class NameOnlyOverviewTest(unittest.TestCase):
         engine = universal.Universal([first, second], no_log)
         details = engine.details("a:1", request("a,b"))
         self.assertEqual(details["overview"], "A rail shooter on the back of a dragon.")
+
+
+class RegionalTitleTest(unittest.TestCase):
+    """A dump from a region the player put last is titled as the player knows the game."""
+
+    japanese = {"title": "Pocket Monsters - Pearl", "releases": [{"regions": ["Japan"]}]}
+
+    def ask(self, primary, *others, regions="europe,world,usa,japan"):
+        providers = [Scripted("a", [cand("1", "hash")], {"1": primary})] + list(others)
+        query = {"title": "Game", "crc32": "deadbeef", "preferredregions": regions}
+        order = ",".join(p.name for p in providers)
+        return universal.Universal(providers, no_log).details("a:1", Request(query, {"provider_order": order}))
+
+    def test_a_japanese_dump_takes_the_players_title(self):
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokémon Pearl Version"}})
+        details = self.ask(self.japanese, b)
+        self.assertEqual(details["title"], "Pokémon Pearl Version")
+        self.assertEqual(details["originaltitle"], "Pocket Monsters - Pearl")
+
+    def test_screenscrapers_regional_name_comes_first(self):
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokemon Pearl"}})
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {"title": "Pokémon Version Perle"}})
+        self.assertEqual(self.ask(self.japanese, b, ss)["title"], "Pokémon Version Perle")
+
+    def test_a_dump_from_the_players_region_keeps_its_title(self):
+        european = {"title": "Pokémon Pearl Version", "releases": [{"regions": ["Europe"]}]}
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokemon Pearl"}})
+        self.assertEqual(self.ask(european, b)["title"], "Pokémon Pearl Version")
+
+    def test_a_player_in_japan_keeps_the_japanese_title(self):
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokémon Pearl Version"}})
+        details = self.ask(self.japanese, b, regions="japan,world,europe,usa")
+        self.assertEqual(details["title"], "Pocket Monsters - Pearl")
+
+    def test_nothing_else_to_go_on_keeps_the_title(self):
+        self.assertEqual(self.ask(self.japanese)["title"], "Pocket Monsters - Pearl")

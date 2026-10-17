@@ -193,6 +193,34 @@ def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) ->
                 seen.add(url)
 
 
+def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str]],
+                   request: Request) -> Optional[str]:
+    """The game's title where the player is, when the dump that identified it is from elsewhere.
+
+    A Japanese dump is identified by its own record, "Pocket Monsters - Pearl",
+    which a player in Europe knows as "Pokémon Pearl Version". Only a dump from
+    a region the player put after the whole world is retitled. ScreenScraper
+    names a game by the player's regions, so its title is preferred.
+    """
+    preferred = request.preferred_regions()
+    regions = [str(r).lower() for release in details.get("releases") or []
+               for r in release.get("regions") or []]
+    if not preferred or not regions or not offered:
+        return None
+
+    def rank(region: str) -> int:
+        return preferred.index(region) if region in preferred else len(preferred)
+
+    if min(rank(r) for r in regions) <= rank("world"):
+        return None
+    own = namer.normalise(str(details.get("title") or ""))
+    titles = [title for name, title in offered if name == "screenscraper"] + [title for _, title in offered]
+    for title in titles:
+        if namer.normalise(title) != own:
+            return title
+    return None
+
+
 def is_just_the_title(overview: Any, title: str) -> bool:
     """Whether an overview says nothing the title has not already said.
 
@@ -378,13 +406,21 @@ class Universal:
         # hash, which is what the alias may be there to overrule
         aliased = any(str(c.get("id")) == local_id
                       for c in self._ask(primary, "find_alias", request) or [])
+        offered: List[Tuple[str, str]] = []
         for provider in self.ordered(request.settings, request.bulk):
             if provider is not primary and provider.name != "arcade":
                 extra = self._lookup(provider, refined, details, take_hashes=not aliased)
                 if extra:
+                    if extra.get("title"):
+                        offered.append((provider.name, str(extra["title"])))
                     if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
                         extra.pop("overview", None)
                     merge(details, extra, DETAIL_FIELDS)
+        regional = regional_title(details, offered, request)
+        if regional:
+            if not details.get("originaltitle"):
+                details["originaltitle"] = details.get("title")
+            details["title"] = regional
         # ArcadeDB is asked by the set name the arcade provider settled on,
         # whatever the order says, and last, so it only fills what is missing
         arcadedb = self.providers.get("arcadedb")
