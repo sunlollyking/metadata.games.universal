@@ -53,3 +53,11 @@ def test_a_picture_known_to_be_wrong_is_left_out():
                               'mediaJeu.php?jeuid=13514&amp;media=box-2D({})</media>'.format(r, r)) for r in ("eu", "us")]
     boxes = ss.media(elements, {"box-2D": "boxfront"}, ["eu", "wor", "us", "jp"])["boxfront"]
     assert [b["region"] for b in boxes] == ["USA"]
+
+
+def test_details_carry_every_regional_name():
+    import xml.etree.ElementTree as ET
+    jeu = ET.fromstring('<jeu id="1"><noms><nom region="eu">Pokémon Pearl Version</nom>'
+                        '<nom region="jp">Pocket Monsters Pearl</nom><nom region="us"></nom></noms></jeu>')
+    details = ss.game_details(jeu, Request({"filename": "a.nds", "preferredregions": "Europe"}, {}))
+    assert details["names"] == ["Pokémon Pearl Version", "Pocket Monsters Pearl"]

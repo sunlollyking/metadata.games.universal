@@ -181,6 +181,12 @@ class OriginalTitleTest(unittest.TestCase):
             {"id": 1, "name": "Castlevania III: Dracula's Curse", "alternative_names": self.ALTS}, "18")
         self.assertEqual(details["originaltitle"], "Akumajou Densetsu")
 
+    def test_details_carry_every_name(self):
+        details = igdb.game_details(
+            {"id": 1, "name": "Castlevania III: Dracula's Curse", "alternative_names": self.ALTS}, "18")
+        self.assertEqual(details["names"], ["Castlevania III: Dracula's Curse", "Devil's Castle Legend",
+                                            "Akumajou Densetsu", "Castlevania 3", "Castlevania III"])
+
     def test_a_game_that_is_known_by_one_name_says_nothing(self):
         self.assertNotIn("originaltitle", igdb.game_details({"id": 1, "name": "Contra"}, "18"))
 

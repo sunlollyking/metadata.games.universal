@@ -405,15 +405,29 @@ class RegionalTitleTest(unittest.TestCase):
         return universal.Universal(providers, no_log).details("a:1", Request(query, {"provider_order": order}))
 
     def test_a_japanese_dump_takes_the_players_title(self):
-        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokémon Pearl Version"}})
+        b = Scripted("b", [cand("2", "hash")],
+                     {"2": {"title": "Pokémon Pearl Version", "names": ["Pocket Monsters Pearl"]}})
         details = self.ask(self.japanese, b)
         self.assertEqual(details["title"], "Pokémon Pearl Version")
         self.assertEqual(details["originaltitle"], "Pocket Monsters - Pearl")
+        self.assertNotIn("names", details)
 
     def test_screenscrapers_regional_name_comes_first(self):
-        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokemon Pearl"}})
-        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {"title": "Pokémon Version Perle"}})
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokemon Pearl", "names": ["Pocket Monsters Pearl"]}})
+        ss = Scripted("screenscraper", [cand("3", "hash")],
+                      {"3": {"title": "Pokémon Version Perle", "names": ["Pocket Monsters Pearl"]}})
         self.assertEqual(self.ask(self.japanese, b, ss)["title"], "Pokémon Version Perle")
+
+    def test_a_service_that_files_the_dump_under_another_game_gives_no_title(self):
+        zero = {"title": "Eiyuu Densetsu - Zero no Kiseki", "releases": [{"regions": ["Japan"]}]}
+        ss = Scripted("screenscraper", [cand("3", "name")], {"3": {
+            "title": "The Legend of Heroes - Trails in the Sky",
+            "names": ["Eiyuu Densetsu : Sora no Kiseki FC", "The Legend of Heroes : Trails in the Sky"]}})
+        igdb = Scripted("igdb", [cand("4", "name")], {"4": {
+            "title": "The Legend of Heroes: Trails from Zero",
+            "names": ["The Legend of Heroes: Trails from Zero", "Eiyuu Densetsu: Zero no Kiseki"]}})
+        self.assertEqual(self.ask(zero, ss)["title"], "Eiyuu Densetsu - Zero no Kiseki")
+        self.assertEqual(self.ask(zero, ss, igdb)["title"], "The Legend of Heroes: Trails from Zero")
 
     def test_a_dump_from_the_players_region_keeps_its_title(self):
         european = {"title": "Pokémon Pearl Version", "releases": [{"regions": ["Europe"]}]}
@@ -421,7 +435,8 @@ class RegionalTitleTest(unittest.TestCase):
         self.assertEqual(self.ask(european, b)["title"], "Pokémon Pearl Version")
 
     def test_a_player_in_japan_keeps_the_japanese_title(self):
-        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokémon Pearl Version"}})
+        b = Scripted("b", [cand("2", "hash")],
+                     {"2": {"title": "Pokémon Pearl Version", "names": ["Pocket Monsters Pearl"]}})
         details = self.ask(self.japanese, b, regions="japan,world,europe,usa")
         self.assertEqual(details["title"], "Pocket Monsters - Pearl")
 

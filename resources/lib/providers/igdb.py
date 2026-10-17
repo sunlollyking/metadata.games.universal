@@ -492,6 +492,7 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     native = original_title(game)
     if native and namer.normalise(native) != namer.normalise(out["title"]):
         out["originaltitle"] = native
+    out["names"] = [out["title"]] + names(game, "alternative_names")
     date = release_date(game, platform_id)
     if date:
         out["releasedate"] = date
