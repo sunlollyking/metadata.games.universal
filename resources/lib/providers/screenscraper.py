@@ -361,7 +361,7 @@ def release(rom: ET.Element) -> Optional[dict]:
         status = tags["devstatus"] if tags["devstatus"] in STATUS_WORDS else "retail"
     licence = "unlicensed" if field(rom, "unl") == "1" else tags["licence"]
     return {
-        "title": filename, "regions": regions, "languages": tags["languages"],
+        "title": namer.dump_title(filename), "regions": regions, "languages": tags["languages"],
         "revision": tags["revision"] or "", "status": status, "licence": licence, "serial": "", "releasedate": "",
         "crc32": field(rom, "romcrc").lower(), "md5": field(rom, "rommd5").lower(),
         "sha1": field(rom, "romsha1").lower(),

@@ -56,6 +56,11 @@ EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,4}$")
 # A scene set numbers every release, "2797 Kimi no Yusha (JP)". Its two-letter
 # region and its lack of a date tell it from a title that starts with a number,
 # "007 - GoldenEye" or TOSEC's "1942 (1986)(Elite)(GB)".
+# DS and GBA sets number their releases in front of the name:
+# "0105 - Castlevania - Dawn of Sorrow (E)(Legacy).nds"
+RELEASE_NUMBER = re.compile(r"^\d{4} - ")
+NUMBERED_DUMP = re.compile(r"\.(nds|gba)$", re.I)
+ARCHIVE_SUFFIX = re.compile(r"\.(zip|7z)$", re.I)
 SCENE_NUMBER = re.compile(r"^\d{4}\s+-?\s*(?=.*\((?:JP|EU|US|FR|KS|DE|IT|ES|NL|AU)\))(?!.*\(\d{4}\))")
 LEADING_NUMBER = re.compile(r"^0\d{2,4}\s+-?\s*")
 ARTICLE = re.compile(r"^([^-]*?), (The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las)((?: - .*)?)$", re.I)
@@ -181,6 +186,14 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
     out["title"] = title
     out["display"] = display_title(title)
     return out
+
+
+def dump_title(filename: str) -> str:
+    """A dump's file name as the title of the release it is, without its extension or release number."""
+    name = ARCHIVE_SUFFIX.sub("", filename)
+    if NUMBERED_DUMP.search(name):
+        name = RELEASE_NUMBER.sub("", name)
+    return EXTENSION.sub("", name).strip()
 
 
 def display_title(title: str) -> str:
