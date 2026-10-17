@@ -30,7 +30,7 @@ DEVSTATUS = [
     (re.compile(r"^beta( ?\d+)?$", re.I), "beta"),
     (re.compile(r"^proto(type)?( ?\d+)?$", re.I), "proto"),
     (re.compile(r"^sample$", re.I), "sample"),
-    (re.compile(r"^(demo|kiosk|preview|trial|taikenban|kiosk demo|demo \d+)(.*)$", re.I), "demo"),
+    (re.compile(r"^(demo|kiosk|preview|trial|taikenban)\b(.*)$", re.I), "demo"),
     (re.compile(r"^alpha$", re.I), "alpha"),
     (re.compile(r"^debug( version)?$", re.I), "debug"),
     (re.compile(r"^(program|check program|sample program|test program)$", re.I), "program"),
@@ -53,6 +53,10 @@ PAREN_TAGS = re.compile(r"\(([^()]*)\)")
 # How to boot it, not what it is: "{V1 mode}", "{4MHz}", "{hold @+GRPH}"
 BRACE_TAGS = re.compile(r"\{([^}]*)\}")
 EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,4}$")
+# A scene set numbers every release, "2797 Kimi no Yusha (JP)". Its two-letter
+# region and its lack of a date tell it from a title that starts with a number,
+# "007 - GoldenEye" or TOSEC's "1942 (1986)(Elite)(GB)".
+SCENE_NUMBER = re.compile(r"^\d{4}\s+-?\s*(?=.*\((?:JP|EU|US|FR|KS|DE|IT|ES|NL|AU)\))(?!.*\(\d{4}\))")
 LEADING_NUMBER = re.compile(r"^0\d{2,4}\s+-?\s*")
 ARTICLE = re.compile(r"^([^-]*?), (The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las)((?: - .*)?)$", re.I)
 NOISE = {"gb compatible", "sgb enhanced", "enhancement chip", "rumble version",
@@ -69,12 +73,11 @@ def parse(filename: str, strip_extension: bool = True) -> Dict[str, Any]:
     name = filename
     if strip_extension:
         name = EXTENSION.sub("", name)
-    # "0123 - Game" is a catalogue number a DS set puts in front of the title,
-    # but "007 - GoldenEye" is the game's own name with its number moved to the
-    # front. The number is taken off and kept, so a match can be tried both ways.
-    leading = LEADING_NUMBER.match(name)
+    # The number is kept either way, so a catalogue that writes it at the end,
+    # "GoldenEye 007", still matches "007 - GoldenEye"
+    leading = LEADING_NUMBER.match(name) or SCENE_NUMBER.match(name)
     catalogue_number = leading.group(0).strip(" -") if leading else ""
-    name = LEADING_NUMBER.sub("", name)
+    name = SCENE_NUMBER.sub("", name)
     out = {
         "title": None, "regions": [], "languages": [], "revision": None,
         "devstatus": "retail", "licence": "licensed", "alt": False, "bad": False,

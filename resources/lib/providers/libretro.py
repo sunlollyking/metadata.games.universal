@@ -208,7 +208,7 @@ class Catalogue:
         keys = [key]
         number = namer.parse(query.get("filename", ""), strip_extension=True).get("number") \
             if query.get("filename") else ""
-        if number and key + number not in keys:
+        if number and not key.startswith(number) and key + number not in keys:
             keys.append(key + number)
         # A set that numbers its games past 999 leaves the number in the
         # title, "2888 Professor Layton ...". Tried only after the whole name,

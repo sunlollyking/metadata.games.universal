@@ -76,3 +76,18 @@ class LeadingNumberTest(unittest.TestCase):
         cat = self.catalogue("GoldenEye (USA)", "GoldenEye 007 (USA)")
         found = cat.find({"title": "GoldenEye", "filename": "007 - GoldenEye.v64"})
         self.assertEqual([c["title"] for c in found], ["GoldenEye"])
+
+
+class TitleWithItsNumberTest(unittest.TestCase):
+    def test_finds_a_game_whose_title_starts_with_a_number(self):
+        cat = Catalogue("Sony - PlayStation Portable")
+        cat.add({"name": "007 - From Russia with Love (USA)"})
+        found = cat.find({"title": "007 - From Russia with Love",
+                          "filename": "007 - From Russia with Love (USA).7z"})
+        self.assertEqual([c["title"] for c in found], ["007 - From Russia with Love"])
+
+    def test_finds_the_catalogue_name_with_the_number_at_the_end(self):
+        cat = Catalogue("Nintendo - Nintendo 64")
+        cat.add({"name": "GoldenEye 007 (USA)"})
+        found = cat.find({"title": "007 - GoldenEye", "filename": "007 - GoldenEye.v64"})
+        self.assertEqual([c["title"] for c in found], ["GoldenEye 007"])
