@@ -119,6 +119,11 @@ def borrowed_serial(candidate: Dict[str, Any], request: Request) -> bool:
     return not namer.title_words(own) & namer.title_words(offered)
 
 
+def file_key(name: Any) -> str:
+    """How a reviewed list names a dump: without the extension, so a CD's .cue and .bin are one entry."""
+    return namer.normalise(namer.EXTENSION.sub("", str(name or "")))
+
+
 def read_exclusions(path: str) -> Set[Tuple[str, str]]:
     """The (platform, file) pairs a reviewed list says no name match is right for.
 
@@ -130,7 +135,7 @@ def read_exclusions(path: str) -> Set[Tuple[str, str]]:
             for line in f:
                 fields = line.rstrip("\n").split("\t")
                 if len(fields) >= 2 and not line.startswith("#"):
-                    exclusions.add((fields[0].strip(), namer.normalise(fields[1])))
+                    exclusions.add((fields[0].strip(), file_key(fields[1])))
     except OSError:
         pass
     return exclusions
@@ -144,7 +149,7 @@ def read_misfiled(path: str) -> Set[Tuple[str, str, str]]:
             for line in f:
                 fields = line.rstrip("\n").split("\t")
                 if len(fields) >= 3 and not line.startswith("#"):
-                    misfiled.add((fields[0].strip(), fields[1].strip(), namer.normalise(fields[2])))
+                    misfiled.add((fields[0].strip(), fields[1].strip(), file_key(fields[2])))
     except OSError:
         pass
     return misfiled
@@ -430,7 +435,7 @@ class Universal:
             if aliased:
                 return [self._namespaced(provider, c, alone, request) for c in aliased]
         # Homebrew Columns and the game it copies share a name and nothing else
-        excluded = (request.get("platform"), namer.normalise(request.get("filename"))) in self.exclusions
+        excluded = (request.get("platform"), file_key(request.get("filename"))) in self.exclusions
         for provider in available:
             if self._misfiles(provider, request):
                 continue
@@ -604,7 +609,7 @@ class Universal:
             self._budget(provider, limit).spend()
 
     def _misfiles(self, provider: Provider, request: Request) -> bool:
-        key = (provider.name, request.get("platform"), namer.normalise(request.get("filename")))
+        key = (provider.name, request.get("platform"), file_key(request.get("filename")))
         if key not in self.misfiled:
             return False
         self.log("{} files {!r} under another game; not asked".format(provider.name, request.get("filename")), False)

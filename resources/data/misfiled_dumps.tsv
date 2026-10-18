@@ -1,5 +1,6 @@
 # Dumps a service files under another game, checked by hand. The service is not asked about them.
 # Service, then Kodi platform, then the file name.
+launchbox	psx	King's Field (USA).cue
 screenscraper	amiga	Populous2_v1.3_0079.zip
 screenscraper	arcade	oldsplus.zip
 screenscraper	atarist	Leader Board Tournament (Europe) (Compilation - Leader Board Birdie).zip
@@ -7,10 +8,10 @@ screenscraper	dos	Battle Isle 93 - The Moon of Chromos (1993)(Blue Byte).7z
 screenscraper	dos	Games Summer Edition (1991)(Epyx).7z
 screenscraper	dos	Simon The Sorcerer 2 (1995)(Headfirst Productions).7z
 screenscraper	dos	Solar Winds The Escape (1993)(Epic Megagames Inc).7z
-screenscraper	gba	Simple 2960 Tomodachi Series Vol. 3 - The Itsudemo Puzzle - Massugu Soroete Straws (Japan).zip
 screenscraper	gb	Mani 4 in 1 - Genki Bakuhatsu Gambaruger + Zettai Muteki Raijin-Oh + Zoids Densetsu + Miracle Adventure of Esparks - Ushinawareta Seiseki Perivron (China).zip
 screenscraper	gb	Mani 4 in 1 - R-Type II + Saigo no Nindou + Ganso!! Yancha Maru + Shisenshou - Match-Mania (China).zip
 screenscraper	gb	Mani 4 in 1 - Takahashi Meijin no Bouken-jima II + GB Genjin + Bomber Boy + Milon no Meikyuu Kumikyoku (China).zip
+screenscraper	gba	Simple 2960 Tomodachi Series Vol. 3 - The Itsudemo Puzzle - Massugu Soroete Straws (Japan).zip
 screenscraper	megadrive	FIFA 2000 - Gold Edition.bin
 screenscraper	megadrive	FIFA Soccer 99.bin
 screenscraper	msx	Le Mans 2 (Europe).zip

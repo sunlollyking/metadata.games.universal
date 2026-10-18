@@ -167,6 +167,30 @@ class FindTest(unittest.TestCase):
         self.assertEqual(scraper.details("a:1", req)["title"], "Sora no Tankentai")
         self.assertNotIn("find", b.calls)
 
+    def test_a_misfile_holds_for_every_file_of_a_cd(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write("b\tpsx\tKing's Field (USA).cue\n")
+        a = Scripted("a", [cand("1", "serial", "King's Field")], {"1": {"title": "King's Field"}})
+        b = Scripted("b", [cand("2", "name", "King's Field (JP)")], {"2": {"title": "King's Field (JP)"}})
+        scraper = universal.Universal([a, b], no_log, misfiled_path=f.name)
+        os.unlink(f.name)
+        req = Request({"title": "King's Field", "filename": "King's Field (USA).bin", "platform": "psx"},
+                      {"provider_order": "a,b"})
+        self.assertEqual(scraper.details("a:1", req)["title"], "King's Field")
+        self.assertNotIn("find", b.calls)
+
+    def test_an_exclusion_holds_for_every_file_of_a_cd(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write("psx\tKing's Field (T).cue\n")
+        a = Scripted("a", [cand("1", "name", "King's Field")])
+        scraper = universal.Universal([a], no_log, exclusions_path=f.name)
+        os.unlink(f.name)
+        req = Request({"title": "King's Field", "filename": "King's Field (T).bin", "platform": "psx"},
+                      {"provider_order": "a"})
+        self.assertEqual(scraper.find(req), [])
+
     def test_a_reviewed_alias_beats_an_earlier_hash(self):
         a = Scripted("a", [cand("h", "hash")])
         b = Scripted("b", [], aliases=[cand("x", "alias")])
