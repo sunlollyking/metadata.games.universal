@@ -467,6 +467,8 @@ def game_details(jeu: ET.Element, request: Request) -> Dict[str, Any]:
     if native and out.get("title") and namer.normalise(native) != namer.normalise(out["title"]):
         out["originaltitle"] = native
     out["names"] = [text(n) for n in jeu.findall("noms/nom") if text(n)]
+    if native:
+        out["nativename"] = native
     date = release_date(jeu, prefs)
     if date:
         out["releasedate"] = date

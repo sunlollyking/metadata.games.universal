@@ -25,6 +25,16 @@ EXCLUSIONS_PATH = os.path.join(DATA_DIR, "name_exclusions.tsv")
 UNOFFICIAL = frozenset(("pirate", "unlicensed", "aftermarket"))
 #: The trailing number that tells one game in a series from the next
 SERIES_NUMBER = re.compile(r"^(.*?)([0-9]+)$")
+#: The region a country's releases rank as, as Kodi ranks them, and the other
+#: countries a catalogue names European releases by
+WIDER_REGIONS = {
+    **{country: "europe" for country in (
+        "united kingdom", "germany", "france", "spain", "italy", "australia", "netherlands",
+        "belgium", "austria", "switzerland", "portugal", "greece", "poland", "sweden", "norway",
+        "denmark", "finland", "scandinavia")},
+    **{country: "usa" for country in ("canada", "brazil")},
+    **{country: "asia" for country in ("korea", "china", "taiwan", "hong kong", "india")},
+}
 #: What a second provider may fill in where the first said nothing. Art and
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
@@ -193,7 +203,15 @@ def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) ->
                 seen.add(url)
 
 
-def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Sequence[Any]]],
+def another_in_series(name: str, known: Set[str]) -> bool:
+    """Whether a name is one of the known keys with words added or dropped at its end."""
+    key = namer.normalise(name)
+    if not key or key in known:
+        return False
+    return any(k and (key.startswith(k) or k.startswith(key)) for k in known)
+
+
+def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Sequence[Any], Any]],
                    request: Request) -> Optional[str]:
     """The game's title where the player is, when the dump that identified it is from elsewhere.
 
@@ -205,7 +223,11 @@ def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Se
     A service files a dump under whichever game it was given as, and that can
     be another game: ScreenScraper has Zero no Kiseki under Trails in the Sky.
     So a title is only taken from a service that also knows the game by a name
-    already found for it.
+    the dump's own record gives it. One entry can also hold a whole series,
+    Quiz Magic Academy DS with its sequel's Japanese name, so a Japanese dump
+    takes nothing from a service whose Japanese name is the dump's with words
+    added or dropped at the end. A name spelt differently is still the game:
+    "Pocket Monsters Platina" for "Pocket Monsters - Platinum".
     """
     preferred = request.preferred_regions()
     regions = [str(r).lower() for release in details.get("releases") or []
@@ -214,16 +236,22 @@ def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Se
         return None
 
     def rank(region: str) -> int:
-        return preferred.index(region) if region in preferred else len(preferred)
+        ranks = [preferred.index(r) for r in (region, WIDER_REGIONS.get(region)) if r in preferred]
+        return min(ranks) if ranks else len(preferred)
 
     if min(rank(r) for r in regions) <= rank("world"):
         return None
     own = namer.normalise(str(details.get("title") or ""))
     known = {namer.normalise(str(name)) for name in
              (details.get("title"), details.get("originaltitle"), request.title()) if name}
+    japanese = "japan" in regions
     answers = [o for o in offered if o[0] == "screenscraper"] + list(offered)
-    for _, title, names in answers:
-        if namer.normalise(title) != own and known & {namer.normalise(str(name)) for name in names if name}:
+    for _, title, names, native in answers:
+        if namer.normalise(title) == own:
+            continue
+        if japanese and native and another_in_series(str(native), known):
+            continue
+        if known & {namer.normalise(str(name)) for name in names if name}:
             return title
     return None
 
@@ -413,18 +441,20 @@ class Universal:
         # hash, which is what the alias may be there to overrule
         aliased = any(str(c.get("id")) == local_id
                       for c in self._ask(primary, "find_alias", request) or [])
-        offered: List[Tuple[str, str, List[Any]]] = []
+        found = dict(details)
+        offered: List[Tuple[str, str, List[Any], Any]] = []
         for provider in self.ordered(request.settings, request.bulk):
             if provider is not primary and provider.name != "arcade":
                 extra = self._lookup(provider, refined, details, take_hashes=not aliased)
                 if extra:
                     if extra.get("title"):
                         names = [extra["title"], extra.get("originaltitle")] + list(extra.get("names") or [])
-                        offered.append((provider.name, str(extra["title"]), names))
+                        native = extra.get("nativename") or extra.get("originaltitle")
+                        offered.append((provider.name, str(extra["title"]), names, native))
                     if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
                         extra.pop("overview", None)
                     merge(details, extra, DETAIL_FIELDS)
-        regional = regional_title(details, offered, request)
+        regional = regional_title(found, offered, request)
         if regional:
             if not details.get("originaltitle"):
                 details["originaltitle"] = details.get("title")
@@ -454,6 +484,7 @@ class Universal:
             if details.get(role):
                 details[role] = companies.normalise(details[role])
         details.pop("names", None)
+        details.pop("nativename", None)
         return details
 
     def _listed_as_own_game(self, primary: Provider, request: Request, parent: str) -> str:

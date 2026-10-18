@@ -429,6 +429,33 @@ class RegionalTitleTest(unittest.TestCase):
         self.assertEqual(self.ask(zero, ss)["title"], "Eiyuu Densetsu - Zero no Kiseki")
         self.assertEqual(self.ask(zero, ss, igdb)["title"], "The Legend of Heroes: Trails from Zero")
 
+    def test_a_name_only_another_service_gave_does_not_count(self):
+        chou = {"title": "Chou Kaseki Monster Battle - Gekitotsu Galaxy", "releases": [{"regions": ["Japan"]}]}
+        b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Spectrobes", "originaltitle": "Kaseki Chou Shinka"}})
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
+            "title": "Spectrobes", "names": ["Spectrobes", "Kaseki Chou Shinka"]}})
+        self.assertEqual(self.ask(chou, b, ss)["title"], "Chou Kaseki Monster Battle - Gekitotsu Galaxy")
+
+    def test_a_series_entry_under_another_name_gives_no_title(self):
+        qma = {"title": "Quiz Magic Academy DS", "releases": [{"regions": ["Japan"]}]}
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
+            "title": "Quiz Magic Academy DS : Futatsu no Jikuuseki",
+            "nativename": "Quiz Magic Academy DS : Futatsu no Jikuuseki",
+            "names": ["Quiz Magic Academy Ds", "Quiz Magic Academy DS : Futatsu no Jikuuseki"]}})
+        self.assertEqual(self.ask(qma, ss)["title"], "Quiz Magic Academy DS")
+        platinum = {"title": "Pocket Monsters - Platinum", "releases": [{"regions": ["Japan"]}]}
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
+            "title": "Pokémon Platinum Version", "nativename": "Pocket Monsters Platina",
+            "names": ["Pokémon Platinum Version", "Pocket Monsters Platinum"]}})
+        self.assertEqual(self.ask(platinum, ss)["title"], "Pokémon Platinum Version")
+
+    def test_a_countrys_dump_is_from_its_wider_region(self):
+        german = {"title": "HMH Vokabeltrainer - Spanisch", "releases": [{"regions": ["Germany"]}]}
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
+            "title": "HMH Vokabeltrainer - Englisch",
+            "names": ["HMH Vokabeltrainer - Englisch", "HMH Vokabeltrainer - Spanisch"]}})
+        self.assertEqual(self.ask(german, ss)["title"], "HMH Vokabeltrainer - Spanisch")
+
     def test_a_dump_from_the_players_region_keeps_its_title(self):
         european = {"title": "Pokémon Pearl Version", "releases": [{"regions": ["Europe"]}]}
         b = Scripted("b", [cand("2", "hash")], {"2": {"title": "Pokemon Pearl"}})

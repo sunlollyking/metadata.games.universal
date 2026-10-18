@@ -61,3 +61,4 @@ def test_details_carry_every_regional_name():
                         '<nom region="jp">Pocket Monsters Pearl</nom><nom region="us"></nom></noms></jeu>')
     details = ss.game_details(jeu, Request({"filename": "a.nds", "preferredregions": "Europe"}, {}))
     assert details["names"] == ["Pokémon Pearl Version", "Pocket Monsters Pearl"]
+    assert details["nativename"] == "Pocket Monsters Pearl"
