@@ -23,6 +23,15 @@ def test_a_country_falls_back_to_its_dump_and_the_usual_order():
     assert ss.preference(req, ss.ART_REGIONS)[:3] == ["uk", "eu", "us"]
 
 
+def test_the_services_own_name_counts_as_the_worlds():
+    req = Request({"regions": "USA", "preferredregions": "Europe,World,USA,Japan"}, {})
+    assert ss.preference(req, ss.NAME_REGIONS)[:4] == ["eu", "wor", "ss", "us"]
+    import xml.etree.ElementTree as ET
+    jeu = ET.fromstring('<jeu id="1"><noms><nom region="ss">Fossil Fighters</nom>'
+                        '<nom region="jp">Bokura wa Kaseki Horider</nom></noms></jeu>')
+    assert ss.game_name(jeu, ss.preference(req, ss.NAME_REGIONS)) == "Fossil Fighters"
+
+
 def test_without_a_preference_the_dumps_region_leads():
     req = Request({"regions": "Japan"}, {})
     assert ss.preference(req, ss.ART_REGIONS) == ["jp", "wor", "us", "eu"]
