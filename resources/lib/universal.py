@@ -203,6 +203,31 @@ def merge(base: Dict[str, Any], extra: Dict[str, Any], fields: Sequence[str]) ->
                 seen.add(url)
 
 
+def edit_distance(a: str, b: str) -> int:
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        current = [i]
+        for j, cb in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb)))
+        previous = current
+    return previous[-1]
+
+
+def same_name(a: str, b: str) -> bool:
+    """Whether two names are one, allowing the romanisations services differ by.
+
+    "Shinryakusha" and "Shinryokusha" are one word; "Sora" and "Yami" are two
+    games, and so is a different number.
+    """
+    a, b = namer.normalise(a), namer.normalise(b)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    return (min(len(a), len(b)) >= 6 and re.findall(r"\d+", a) == re.findall(r"\d+", b)
+            and edit_distance(a, b) <= 2)
+
+
 def another_in_series(name: str, known: Set[str]) -> bool:
     """Whether a name is one of the known keys with words added or dropped at its end."""
     key = namer.normalise(name)
@@ -242,8 +267,8 @@ def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Se
     if min(rank(r) for r in regions) <= rank("world"):
         return None
     own = namer.normalise(str(details.get("title") or ""))
-    known = {namer.normalise(str(name)) for name in
-             (details.get("title"), details.get("originaltitle"), request.title()) if name}
+    own_names = [str(name) for name in (details.get("title"), details.get("originaltitle"), request.title()) if name]
+    known = {namer.normalise(name) for name in own_names}
     japanese = "japan" in regions
     answers = [o for o in offered if o[0] == "screenscraper"] + list(offered)
     for _, title, names, native in answers:
@@ -251,7 +276,7 @@ def regional_title(details: Dict[str, Any], offered: Sequence[Tuple[str, str, Se
             continue
         if japanese and native and another_in_series(str(native), known):
             continue
-        if known & {namer.normalise(str(name)) for name in names if name}:
+        if any(same_name(str(name), mine) for name in names if name for mine in own_names):
             return title
     return None
 

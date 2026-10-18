@@ -446,8 +446,15 @@ class RegionalTitleTest(unittest.TestCase):
         platinum = {"title": "Pocket Monsters - Platinum", "releases": [{"regions": ["Japan"]}]}
         ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
             "title": "Pokémon Platinum Version", "nativename": "Pocket Monsters Platina",
-            "names": ["Pokémon Platinum Version", "Pocket Monsters Platinum"]}})
+            "names": ["Pokémon Platinum Version", "Pocket Monsters Platina"]}})
         self.assertEqual(self.ask(platinum, ss)["title"], "Pokémon Platinum Version")
+
+    def test_another_word_is_another_game(self):
+        sora = {"title": "Pokemon Fushigi no Dungeon - Sora no Tankentai", "releases": [{"regions": ["Japan"]}]}
+        ss = Scripted("screenscraper", [cand("3", "hash")], {"3": {
+            "title": "Pokémon Mystery Dungeon - Explorers of Darkness",
+            "names": ["Pokémon Mystery Dungeon - Explorers of Darkness", "Pokemon Fushigi no Dungeon : Yami no Tankentai"]}})
+        self.assertEqual(self.ask(sora, ss)["title"], "Pokemon Fushigi no Dungeon - Sora no Tankentai")
 
     def test_a_countrys_dump_is_from_its_wider_region(self):
         german = {"title": "HMH Vokabeltrainer - Spanisch", "releases": [{"regions": ["Germany"]}]}
