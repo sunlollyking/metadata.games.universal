@@ -119,9 +119,13 @@ def borrowed_serial(candidate: Dict[str, Any], request: Request) -> bool:
     return not namer.title_words(own) & namer.title_words(offered)
 
 
+#: A multi-track CD names each track's file after the game with this on the end
+TRACK = re.compile(r"\s*\(Track \d+\)$", re.I)
+
+
 def file_key(name: Any) -> str:
-    """How a reviewed list names a dump: without the extension, so a CD's .cue and .bin are one entry."""
-    return namer.normalise(namer.EXTENSION.sub("", str(name or "")))
+    """How a reviewed list names a dump: without the extension or track, so every file of a CD is one entry."""
+    return namer.normalise(TRACK.sub("", namer.EXTENSION.sub("", str(name or ""))))
 
 
 def read_exclusions(path: str) -> Set[Tuple[str, str]]:

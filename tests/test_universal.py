@@ -179,6 +179,10 @@ class FindTest(unittest.TestCase):
                       {"provider_order": "a,b"})
         self.assertEqual(scraper.details("a:1", req)["title"], "King's Field")
         self.assertNotIn("find", b.calls)
+        track = Request({"title": "King's Field", "filename": "King's Field (USA) (Track 01).bin", "platform": "psx"},
+                        {"provider_order": "a,b"})
+        scraper.details("a:1", track)
+        self.assertNotIn("find", b.calls)
 
     def test_an_exclusion_holds_for_every_file_of_a_cd(self):
         import tempfile
