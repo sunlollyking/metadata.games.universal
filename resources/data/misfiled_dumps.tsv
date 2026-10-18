@@ -2,10 +2,17 @@
 # Service, then Kodi platform, then the file name.
 launchbox	psx	King's Field (USA).cue
 screenscraper	amiga	Populous2_v1.3_0079.zip
+screenscraper	arcade	airwlkrs.zip
+screenscraper	arcade	gtrak10.zip
+screenscraper	arcade	hipai2.zip
+screenscraper	arcade	mjmyorn2.zip
+screenscraper	arcade	nbagold.zip
 screenscraper	arcade	oldsplus.zip
 screenscraper	atarist	Leader Board Tournament (Europe) (Compilation - Leader Board Birdie).zip
+screenscraper	atarist	World Class Leader Board (Europe) (Budget - Klassix).zip
 screenscraper	dos	Battle Isle 93 - The Moon of Chromos (1993)(Blue Byte).7z
 screenscraper	dos	Games Summer Edition (1991)(Epyx).7z
+screenscraper	dos	Pool (1994)(Ninano Software Co).7z
 screenscraper	dos	Simon The Sorcerer 2 (1995)(Headfirst Productions).7z
 screenscraper	dos	Solar Winds The Escape (1993)(Epic Megagames Inc).7z
 screenscraper	gb	Mani 4 in 1 - Genki Bakuhatsu Gambaruger + Zettai Muteki Raijin-Oh + Zoids Densetsu + Miracle Adventure of Esparks - Ushinawareta Seiseki Perivron (China).zip
@@ -15,6 +22,7 @@ screenscraper	gba	Simple 2960 Tomodachi Series Vol. 3 - The Itsudemo Puzzle - Ma
 screenscraper	megadrive	FIFA 2000 - Gold Edition.bin
 screenscraper	megadrive	FIFA Soccer 99.bin
 screenscraper	msx	Le Mans 2 (Europe).zip
+screenscraper	msx	Wonder Boy (Japan).zip
 screenscraper	nds	0995 Mario vs. Donkey Kong 2 - MiniMini Daikoushin! (JP).zip
 screenscraper	nds	1089 Dekitayo! Mama, Otokonoko (JP).zip
 screenscraper	nds	1777 Mi Experto en Frances (ES).zip
@@ -30,7 +38,14 @@ screenscraper	nds	4578 Maji de Manabu - LEC de Ukaru - DS Kikenbutsu Toriatsukai
 screenscraper	nds	4598 Honki de Manabu - LEC de Ukaru - DS Koumuin Shiken Suuteki Shori (JP).zip
 screenscraper	nds	4599 Jewel Pet - Mahou no DS Kirapi Karin (JP).zip
 screenscraper	nds	4793 Lernerfolg Grundschule - Deutsch - Klasse 1-4 (EU).zip
+screenscraper	nds	4794 Lernerfolg Vorschule - Capt'n Sharky (EU).zip
 screenscraper	nds	4795 More Successful Learning - Maths (EU)(M5).zip
 screenscraper	nes	Jurassic Boy (Sachen).nes
 screenscraper	psp	Legend of Heroes, The - Zero no Kiseki (Japan) [T-En by Zerker & Guren v1.0.2].7z
+screenscraper	saturn	Ten Pin Alley (USA).cue
+screenscraper	saturn	X Japan - Virtual Shock 001 (Japan) (4M).cue
+screenscraper	saturn	Zoop (Japan).cue
+screenscraper	segacd	Hook (USA) (Alt).cue
+screenscraper	segacd	Wonder Dog (USA) (RE).cue
+screenscraper	snes	Front Mission.sfc
 screenscraper	zxspectrum	Kenny Dalglish Soccer Match (Europe).zip
