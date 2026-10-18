@@ -153,6 +153,20 @@ class FindTest(unittest.TestCase):
                       {"provider_order": "a"})
         self.assertEqual([c["id"] for c in scraper.find(req)], ["a:1"])
 
+    def test_a_service_is_not_asked_about_a_dump_it_misfiles(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8") as f:
+            f.write("b\tnds\tSora no Tankentai (JP).zip\n")
+        a = Scripted("a", [cand("1", "name", "Sora no Tankentai")], {"1": {"title": "Sora no Tankentai"}})
+        b = Scripted("b", [cand("2", "hash", "Explorers of Darkness")], {"2": {"title": "Explorers of Darkness"}})
+        scraper = universal.Universal([a, b], no_log, misfiled_path=f.name)
+        os.unlink(f.name)
+        req = Request({"title": "Sora no Tankentai", "filename": "Sora no Tankentai (JP).zip", "platform": "nds"},
+                      {"provider_order": "a,b"})
+        self.assertEqual([c["id"] for c in scraper.find(req)], ["a:1"])
+        self.assertEqual(scraper.details("a:1", req)["title"], "Sora no Tankentai")
+        self.assertNotIn("find", b.calls)
+
     def test_a_reviewed_alias_beats_an_earlier_hash(self):
         a = Scripted("a", [cand("h", "hash")])
         b = Scripted("b", [], aliases=[cand("x", "alias")])

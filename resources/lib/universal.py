@@ -20,6 +20,8 @@ from .providers.arcade import members_of
 IDENTITY_MATCHES = ("hash", "serial")
 #: Files a reviewed list says are not the catalogues' games of the same name
 EXCLUSIONS_PATH = os.path.join(DATA_DIR, "name_exclusions.tsv")
+#: Dumps a reviewed list says a service files under another game
+MISFILED_PATH = os.path.join(DATA_DIR, "misfiled_dumps.tsv")
 #: A dump the catalogue marks as one of these was made from another game. A
 #: service that files the two together answers about the one it was made from.
 UNOFFICIAL = frozenset(("pirate", "unlicensed", "aftermarket"))
@@ -132,6 +134,20 @@ def read_exclusions(path: str) -> Set[Tuple[str, str]]:
     except OSError:
         pass
     return exclusions
+
+
+def read_misfiled(path: str) -> Set[Tuple[str, str, str]]:
+    """The (service, platform, file) triples a reviewed list says the service files under another game."""
+    misfiled: Set[Tuple[str, str, str]] = set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) >= 3 and not line.startswith("#"):
+                    misfiled.add((fields[0].strip(), fields[1].strip(), namer.normalise(fields[2])))
+    except OSError:
+        pass
+    return misfiled
 
 
 def derived_version(dump: Optional[Dict[str, Any]], title: str, request: Request) -> Optional[dict]:
@@ -308,11 +324,12 @@ class Universal:
     """The scraper behind the entry point, built once per process from a provider list."""
 
     def __init__(self, providers: Sequence[Provider], log: Log, cache_dir: str = "",
-                 exclusions_path: str = EXCLUSIONS_PATH):
+                 exclusions_path: str = EXCLUSIONS_PATH, misfiled_path: str = MISFILED_PATH):
         self.providers: Dict[str, Provider] = {p.name: p for p in providers}
         self.log = log
         self.cache_dir = cache_dir
         self.exclusions = read_exclusions(exclusions_path)
+        self.misfiled = read_misfiled(misfiled_path)
         self._budgets: Dict[str, Budget] = {}
         #: Sources that answered "no allowance left" during this run
         self._exhausted: set = set()
@@ -415,6 +432,8 @@ class Universal:
         # Homebrew Columns and the game it copies share a name and nothing else
         excluded = (request.get("platform"), namer.normalise(request.get("filename"))) in self.exclusions
         for provider in available:
+            if self._misfiles(provider, request):
+                continue
             if request.bulk and not provider.bulk_safe:
                 self._spend(provider, request.settings)
             candidates = self._ask(provider, "find", request) or []
@@ -584,6 +603,13 @@ class Universal:
         if limit > 0:
             self._budget(provider, limit).spend()
 
+    def _misfiles(self, provider: Provider, request: Request) -> bool:
+        key = (provider.name, request.get("platform"), namer.normalise(request.get("filename")))
+        if key not in self.misfiled:
+            return False
+        self.log("{} files {!r} under another game; not asked".format(provider.name, request.get("filename")), False)
+        return True
+
     def _lookup(self, provider: Provider,
                 request: Request,
                 known: Optional[Dict[str, Any]] = None,
@@ -595,6 +621,8 @@ class Universal:
         different games: the one whose year agrees with what is already known
         is taken, and the best-placed one where nothing is known.
         """
+        if self._misfiles(provider, request):
+            return None
         if request.bulk and not provider.bulk_safe:
             self._spend(provider, request.settings)
 

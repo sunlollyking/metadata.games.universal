@@ -1,0 +1,35 @@
+# Dumps a service files under another game, checked by hand. The service is not asked about them.
+# Service, then Kodi platform, then the file name.
+screenscraper	amiga	Populous2_v1.3_0079.zip
+screenscraper	arcade	oldsplus.zip
+screenscraper	atarist	Leader Board Tournament (Europe) (Compilation - Leader Board Birdie).zip
+screenscraper	dos	Battle Isle 93 - The Moon of Chromos (1993)(Blue Byte).7z
+screenscraper	dos	Games Summer Edition (1991)(Epyx).7z
+screenscraper	dos	Simon The Sorcerer 2 (1995)(Headfirst Productions).7z
+screenscraper	dos	Solar Winds The Escape (1993)(Epic Megagames Inc).7z
+screenscraper	gba	Simple 2960 Tomodachi Series Vol. 3 - The Itsudemo Puzzle - Massugu Soroete Straws (Japan).zip
+screenscraper	gb	Mani 4 in 1 - Genki Bakuhatsu Gambaruger + Zettai Muteki Raijin-Oh + Zoids Densetsu + Miracle Adventure of Esparks - Ushinawareta Seiseki Perivron (China).zip
+screenscraper	gb	Mani 4 in 1 - R-Type II + Saigo no Nindou + Ganso!! Yancha Maru + Shisenshou - Match-Mania (China).zip
+screenscraper	gb	Mani 4 in 1 - Takahashi Meijin no Bouken-jima II + GB Genjin + Bomber Boy + Milon no Meikyuu Kumikyoku (China).zip
+screenscraper	megadrive	FIFA 2000 - Gold Edition.bin
+screenscraper	megadrive	FIFA Soccer 99.bin
+screenscraper	msx	Le Mans 2 (Europe).zip
+screenscraper	nds	0995 Mario vs. Donkey Kong 2 - MiniMini Daikoushin! (JP).zip
+screenscraper	nds	1089 Dekitayo! Mama, Otokonoko (JP).zip
+screenscraper	nds	1777 Mi Experto en Frances (ES).zip
+screenscraper	nds	2150 Mi Experto en Ingles (ES).zip
+screenscraper	nds	2314 My Spanish Coach - Level 2 - Improve Your Spanish (EU).zip
+screenscraper	nds	2315 My French Coach - Level 2 - Improve Your French (EU).zip
+screenscraper	nds	2564 Maji de Manabu - LEC de Ukaru - DS Nisshou Boki 3 Kyuu (JP).zip
+screenscraper	nds	3946 Maji de Manabu - LEC de Ukaru - DS Hisho Kentei 2-Kyuu - 3-Kyuu (JP).zip
+screenscraper	nds	4040 Mi Experto en Cocina - Comida Saludable (DSi Enhanced) (ES).zip
+screenscraper	nds	4129 HMH Vokabeltrainer - Franzoesisch (DE).zip
+screenscraper	nds	4380 Girls Life - Fashion Addict (DSi Enhanced) (EU)(M6).zip
+screenscraper	nds	4578 Maji de Manabu - LEC de Ukaru - DS Kikenbutsu Toriatsukaisha Otsushu 4 Rui (JP).zip
+screenscraper	nds	4598 Honki de Manabu - LEC de Ukaru - DS Koumuin Shiken Suuteki Shori (JP).zip
+screenscraper	nds	4599 Jewel Pet - Mahou no DS Kirapi Karin (JP).zip
+screenscraper	nds	4793 Lernerfolg Grundschule - Deutsch - Klasse 1-4 (EU).zip
+screenscraper	nds	4795 More Successful Learning - Maths (EU)(M5).zip
+screenscraper	nes	Jurassic Boy (Sachen).nes
+screenscraper	psp	Legend of Heroes, The - Zero no Kiseki (Japan) [T-En by Zerker & Guren v1.0.2].7z
+screenscraper	zxspectrum	Kenny Dalglish Soccer Match (Europe).zip
