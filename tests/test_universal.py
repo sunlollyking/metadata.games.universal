@@ -440,7 +440,7 @@ class RegionalTitleTest(unittest.TestCase):
 
     japanese = {"title": "Pocket Monsters - Pearl", "releases": [{"regions": ["Japan"]}]}
 
-    def ask(self, primary, *others, regions="europe,world,usa,japan"):
+    def ask(self, primary, *others, regions="150,World,US,JP"):
         providers = [Scripted("a", [cand("1", "hash")], {"1": primary})] + list(others)
         query = {"title": "Game", "crc32": "deadbeef", "preferredregions": regions}
         order = ",".join(p.name for p in providers)
@@ -513,7 +513,7 @@ class RegionalTitleTest(unittest.TestCase):
     def test_a_player_in_japan_keeps_the_japanese_title(self):
         b = Scripted("b", [cand("2", "hash")],
                      {"2": {"title": "Pokémon Pearl Version", "names": ["Pocket Monsters Pearl"]}})
-        details = self.ask(self.japanese, b, regions="japan,world,europe,usa")
+        details = self.ask(self.japanese, b, regions="JP,World,150,US")
         self.assertEqual(details["title"], "Pocket Monsters - Pearl")
 
     def test_nothing_else_to_go_on_keeps_the_title(self):

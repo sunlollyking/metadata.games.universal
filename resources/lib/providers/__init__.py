@@ -14,6 +14,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .. import namer
+from .. import regions as kodi_regions
 
 Log = Callable[[str, bool], None]
 _UNSET = object()
@@ -65,11 +66,11 @@ class Request:
         return title
 
     def regions(self) -> List[str]:
-        return [r.strip() for r in self.get("regions").lower().split(",") if r.strip()]
+        return [kodi_regions.name(r).lower() for r in self.get("regions").split(",") if r.strip()]
 
     def preferred_regions(self) -> List[str]:
         """The player's regions, in their order, before the dump's own."""
-        return [r.strip() for r in self.get("preferredregions").lower().split(",") if r.strip()]
+        return [kodi_regions.name(r).lower() for r in self.get("preferredregions").split(",") if r.strip()]
 
     def hashes(self) -> Dict[str, str]:
         """The hashes Kodi computed, lower case, keyed by query parameter."""

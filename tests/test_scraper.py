@@ -83,6 +83,7 @@ class ScraperTest(unittest.TestCase):
         self.assertEqual([c[3]["id"] for c in found], ["libretro:Dare Devil Derby 3D (USA)"])
         self.assertEqual(found[0][3]["matchedby"], "serial")
         self.assertEqual(found[0][3]["score"], 1.0)
+        self.assertEqual(found[0][3]["regions"], ["US"])
 
     def test_serial_normalisation(self):
         self.assertEqual(libretro.norm_serial(b"SLUS-00300"), "SLUS00300")

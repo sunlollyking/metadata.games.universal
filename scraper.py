@@ -15,6 +15,7 @@ import xbmcvfs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from resources.lib import regions  # noqa: E402
 from resources.lib import saveart as saveart_lib  # noqa: E402
 from resources.lib import universal  # noqa: E402
 from resources.lib.providers import Request  # noqa: E402
@@ -133,9 +134,9 @@ def find(handle: int, query: Dict[str, str]) -> None:
         cand["platform"] = query.get("platform", "")
         details = cand.pop("details", None)
         item = xbmcgui.ListItem(cand["title"])
-        item.setProperty("gamelibrary.candidate", json.dumps(cand))
+        item.setProperty("gamelibrary.candidate", json.dumps(regions.encode(cand)))
         if details:
-            item.setProperty("gamelibrary.details", json.dumps(details))
+            item.setProperty("gamelibrary.details", json.dumps(regions.encode(details)))
         xbmcplugin.addDirectoryItem(handle, url=cand["id"], listitem=item, isFolder=False)
     log("find {!r}: {} candidate(s)".format(query.get("title") or query.get("filename"), len(candidates)))
     xbmcplugin.endOfDirectory(handle)
@@ -199,9 +200,9 @@ def findmany(handle: int, query: Dict[str, str]) -> None:
                                                                     traceback.format_exc()), True)
 
             item = xbmcgui.ListItem(cand["title"])
-            item.setProperty("gamelibrary.candidate", json.dumps(cand))
+            item.setProperty("gamelibrary.candidate", json.dumps(regions.encode(cand)))
             if details:
-                item.setProperty("gamelibrary.details", json.dumps(details))
+                item.setProperty("gamelibrary.details", json.dumps(regions.encode(details)))
             xbmcplugin.addDirectoryItem(handle, url=cand["id"], listitem=item, isFolder=False)
             found += 1
 
@@ -222,7 +223,7 @@ def getdetails(handle: int, query: Dict[str, str]) -> None:
         xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
         return
     item = xbmcgui.ListItem(details["title"])
-    item.setProperty("gamelibrary.details", json.dumps(details))
+    item.setProperty("gamelibrary.details", json.dumps(regions.encode(details)))
     xbmcplugin.setResolvedUrl(handle, True, item)
 
 

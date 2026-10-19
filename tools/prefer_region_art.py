@@ -36,6 +36,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from resources.lib import regions as kodi_regions  # noqa: E402
 from resources.lib.providers.screenscraper import SS_OWN_ART_REGION, SS_OWN_MEDIA, SS_REGION_NAMES  # noqa: E402
 
 DEFAULT_REGIONS = "Europe,World,USA,Japan"
@@ -124,7 +125,7 @@ def release_regions(db):
                 "SELECT gamerelease.idGame, region.code FROM gamerelease "
                 "JOIN release_region ON release_region.idRelease = gamerelease.idRelease "
                 "JOIN region ON region.idRegion = release_region.idRegion"):
-            found[game].add(area)
+            found[game].add(kodi_regions.name(area))
     except sqlite3.OperationalError:
         pass
     return found

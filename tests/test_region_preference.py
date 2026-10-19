@@ -14,17 +14,17 @@ from resources.lib.providers import screenscraper as ss  # noqa: E402
 
 
 def test_the_players_regions_come_first_then_the_dumps():
-    req = Request({"regions": "Japan", "preferredregions": "Europe,World,USA,Japan"}, {})
+    req = Request({"regions": "JP", "preferredregions": "150,World,US,JP"}, {})
     assert ss.preference(req, ss.ART_REGIONS) == ["eu", "wor", "us", "jp"]
 
 
 def test_a_country_falls_back_to_its_dump_and_the_usual_order():
-    req = Request({"regions": "USA", "preferredregions": "United Kingdom,Europe"}, {})
+    req = Request({"regions": "US", "preferredregions": "GB,150"}, {})
     assert ss.preference(req, ss.ART_REGIONS)[:3] == ["uk", "eu", "us"]
 
 
 def test_the_services_own_name_counts_as_the_worlds():
-    req = Request({"regions": "USA", "preferredregions": "Europe,World,USA,Japan"}, {})
+    req = Request({"regions": "US", "preferredregions": "150,World,US,JP"}, {})
     assert ss.preference(req, ss.NAME_REGIONS)[:4] == ["eu", "wor", "ss", "us"]
     import xml.etree.ElementTree as ET
     jeu = ET.fromstring('<jeu id="1"><noms><nom region="ss">Fossil Fighters</nom>'
@@ -33,7 +33,7 @@ def test_the_services_own_name_counts_as_the_worlds():
 
 
 def test_without_a_preference_the_dumps_region_leads():
-    req = Request({"regions": "Japan"}, {})
+    req = Request({"regions": "JP"}, {})
     assert ss.preference(req, ss.ART_REGIONS) == ["jp", "wor", "us", "eu"]
 
 
@@ -68,6 +68,6 @@ def test_details_carry_every_regional_name():
     import xml.etree.ElementTree as ET
     jeu = ET.fromstring('<jeu id="1"><noms><nom region="eu">Pokémon Pearl Version</nom>'
                         '<nom region="jp">Pocket Monsters Pearl</nom><nom region="us"></nom></noms></jeu>')
-    details = ss.game_details(jeu, Request({"filename": "a.nds", "preferredregions": "Europe"}, {}))
+    details = ss.game_details(jeu, Request({"filename": "a.nds", "preferredregions": "150"}, {}))
     assert details["names"] == ["Pokémon Pearl Version", "Pocket Monsters Pearl"]
     assert details["nativename"] == "Pocket Monsters Pearl"
