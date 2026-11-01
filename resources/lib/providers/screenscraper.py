@@ -234,9 +234,10 @@ def preference(request: Request, fallback: Sequence[str]) -> List[str]:
     """The player's regions, then the dump's, as ScreenScraper's codes, then the usual fallbacks."""
     regions = list(dict.fromkeys(SS_REGION_CODES.get(r, r)
                                  for r in request.preferred_regions() + request.regions()))
-    # The service's own name for a game is its name for the world
-    if "ss" in fallback and "wor" in regions:
-        regions.insert(regions.index("wor") + 1, "ss")
+    # The service's own name for a game is often its French one, so it follows
+    # the player's regions and the dump's, though still ahead of Japan's
+    if "ss" in fallback:
+        regions.insert(regions.index("jp") if "jp" in regions[1:] else len(regions), "ss")
     return regions + [r for r in fallback if r not in regions]
 
 
