@@ -234,10 +234,9 @@ def preference(request: Request, fallback: Sequence[str]) -> List[str]:
     """The player's regions, then the dump's, as ScreenScraper's codes, then the usual fallbacks."""
     regions = list(dict.fromkeys(SS_REGION_CODES.get(r, r)
                                  for r in request.preferred_regions() + request.regions()))
-    # The service's own name for a game is often its French one, so it follows
-    # the player's regions and the dump's, though still ahead of Japan's
-    if "ss" in fallback:
-        regions.insert(regions.index("jp") if "jp" in regions[1:] else len(regions), "ss")
+    # The service's own name for a game is its name for the world
+    if "ss" in fallback and "wor" in regions:
+        regions.insert(regions.index("wor") + 1, "ss")
     return regions + [r for r in fallback if r not in regions]
 
 
@@ -265,7 +264,28 @@ def not_a_game(jeu: ET.Element) -> bool:
 
 
 def game_name(jeu: ET.Element, prefs: Sequence[str]) -> str:
-    return text(pick([n for n in jeu.findall("noms/nom") if text(n)], "region", prefs))
+    names = [n for n in jeu.findall("noms/nom") if text(n)]
+    if foreign_own_name(names, prefs):
+        prefs = [region for region in prefs if region != "ss"]
+    return text(pick(names, "region", prefs))
+
+
+def foreign_own_name(names: Sequence[ET.Element], prefs: Sequence[str]) -> bool:
+    """Whether the service's own name for a game is only its name for a region nobody asked for.
+
+    ScreenScraper often takes a game's French name as its own: The Destiny of
+    Zorro is "Destinée De Zorro, La" there, for the USA release too. A name
+    that is also the one for a region the player or the dump wants is kept.
+    """
+    keys: Dict[str, str] = {}
+    for name in names:
+        keys.setdefault(name.get("region") or "", namer.normalise(text(name)))
+    own = keys.get("ss")
+    if not own:
+        return False
+    wanted = {key for region, key in keys.items() if region in prefs and region != "ss"}
+    foreign = {key for region, key in keys.items() if region not in prefs}
+    return own in foreign and own not in wanted
 
 
 def native_name(jeu: ET.Element) -> str:

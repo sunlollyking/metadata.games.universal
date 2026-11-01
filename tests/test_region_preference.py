@@ -23,18 +23,28 @@ def test_a_country_falls_back_to_its_dump_and_the_usual_order():
     assert ss.preference(req, ss.ART_REGIONS)[:3] == ["uk", "eu", "us"]
 
 
-def test_the_services_own_name_follows_the_dumps_but_comes_before_japans():
+def test_the_services_own_name_counts_as_the_worlds():
     req = Request({"regions": "US", "preferredregions": "150,World,US,JP"}, {})
-    assert ss.preference(req, ss.NAME_REGIONS)[:5] == ["eu", "wor", "us", "ss", "jp"]
+    assert ss.preference(req, ss.NAME_REGIONS)[:4] == ["eu", "wor", "ss", "us"]
     import xml.etree.ElementTree as ET
     jeu = ET.fromstring('<jeu id="1"><noms><nom region="ss">Fossil Fighters</nom>'
                         '<nom region="jp">Bokura wa Kaseki Horider</nom></noms></jeu>')
     assert ss.game_name(jeu, ss.preference(req, ss.NAME_REGIONS)) == "Fossil Fighters"
-    # The service's own name for this USA release is its French one
+
+
+def test_the_services_own_name_is_passed_over_when_it_is_only_a_foreign_one():
+    import xml.etree.ElementTree as ET
+    req = Request({"regions": "US", "preferredregions": "GB,150,World,US,JP"}, {})
+    prefs = ss.preference(req, ss.NAME_REGIONS)
     jeu = ET.fromstring('<jeu id="2"><noms><nom region="ss">Destin\u00e9e De Zorro, La</nom>'
                         '<nom region="fr">La Destin\u00e9e de Zorro</nom>'
                         '<nom region="us">The Destiny of Zorro</nom></noms></jeu>')
-    assert ss.game_name(jeu, ss.preference(req, ss.NAME_REGIONS)) == "The Destiny of Zorro"
+    assert ss.game_name(jeu, prefs) == "The Destiny of Zorro"
+    # The same name for France and the USA, so it isn't only a foreign one
+    jeu = ET.fromstring('<jeu id="3"><noms><nom region="ss">Galaga - Destination Earth</nom>'
+                        '<nom region="fr">Galaga - Destination Earth</nom>'
+                        '<nom region="us">Galaga : Destination Earth</nom></noms></jeu>')
+    assert ss.game_name(jeu, prefs) == "Galaga - Destination Earth"
 
 
 def test_without_a_preference_the_dumps_region_leads():
