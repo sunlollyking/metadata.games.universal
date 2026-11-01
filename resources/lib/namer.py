@@ -204,6 +204,11 @@ def display_title(title: str) -> str:
     return title
 
 
+def colon_spacing(title: str) -> str:
+    """Close up French spacing before a colon: "Rance II : Hangyaku" -> "Rance II: Hangyaku"."""
+    return re.sub(r"\s+:\s+", ": ", title)
+
+
 # Letters of any script stay: a key of only the ASCII left of "あすか2" is "2", the
 # same as every other game ending in 2
 _norm_rx = re.compile(r"[\W_]+")

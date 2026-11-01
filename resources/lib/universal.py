@@ -536,6 +536,13 @@ class Universal:
         for role in ("publishers", "developers"):
             if details.get(role):
                 details[role] = companies.normalise(details[role])
+        # ScreenScraper writes its names with French spacing
+        for field in ("title", "originaltitle"):
+            if details.get(field):
+                details[field] = namer.colon_spacing(str(details[field]))
+        for release in details.get("releases") or []:
+            if release.get("title"):
+                release["title"] = namer.colon_spacing(str(release["title"]))
         details.pop("names", None)
         details.pop("nativename", None)
         return details
