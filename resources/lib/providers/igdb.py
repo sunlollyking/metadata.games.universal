@@ -60,7 +60,8 @@ DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_r
                  "language_supports.language.name,videos.video_id,videos.name,"
                  "similar_games.name,aggregated_rating,aggregated_rating_count,"
                  "rating,rating_count,hypes,websites.url,"
-                 "dlcs.name,expansions.name,remakes.name,remasters.name,ports.name")
+                 "dlcs.name,expansions.name,remakes.name,remasters.name,ports.name,"
+                 "standalone_expansions.name")
 DETAIL_FIELDS = (
     DETAIL_COMMON + ",game_type,collections.name,age_ratings.rating_category,age_ratings.organization,"
                     "age_ratings.rating_content_descriptions.description,"
@@ -578,11 +579,20 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     similar = names(game, "similar_games")
     if similar:
         out["similar"] = similar
+    related = [{"kind": kind, "title": title} for field, kind in RELATED
+               for title in names(game, field)]
+    if related:
+        out["related"] = related
     extra = wider(game)
     if extra:
         out["igdb"] = extra
     return out
 
+
+#: Games IGDB relates to this one, and what each is to it
+RELATED = (("remakes", "remake"), ("remasters", "remaster"), ("ports", "port"),
+           ("dlcs", "dlc"), ("expansions", "expansion"), ("standalone_expansions", "expansion"),
+           ("parent_game", "original"))
 
 #: Lists worth keeping whole, by the name they are given back under
 WIDER_LISTS = (("player_perspectives", "perspectives"), ("keywords", "keywords"),
