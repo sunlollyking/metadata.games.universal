@@ -586,6 +586,9 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     languages = language_support(game)
     if languages:
         out["languagesupport"] = languages
+    modes = names(game, "game_modes")
+    if modes:
+        out["modes"] = modes
     extra = wider(game)
     if extra:
         out["igdb"] = extra
