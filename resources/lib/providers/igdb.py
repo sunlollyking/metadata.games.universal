@@ -71,6 +71,10 @@ DETAIL_FIELDS = (
                     "release_dates.category,websites.category",
 )
 TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely"
+POPULARITY_FIELDS = "game_id,popularity_type,value"
+#: IGDB's own measures of interest in a game, by the names Kodi is given them under
+POPULARITY_NAMES = {"visits": "visits", "want to play": "wanttoplay", "playing": "playing",
+                    "played": "played"}
 PLATFORM_LIST_FIELDS = "name,alternative_name,abbreviation,slug"
 PLATFORM_FIELDS = "name,alternative_name,abbreviation,summary,platform_logo.image_id,generation,versions.companies.company.name"
 #: Kinds that are the game itself rather than something sold alongside it.
@@ -134,6 +138,10 @@ class IgdbProvider(OnlineProvider):
         #: How long players took to beat each game asked about, by id; empty
         #: where IGDB has no times for it
         self._times: Dict[str, dict] = {}
+        #: The same for popularity, by id and then by Kodi's name for the measure
+        self._popularity: Dict[str, Dict[str, float]] = {}
+        #: IGDB's popularity types, by id, once asked
+        self._popularity_types: Optional[Dict[int, str]] = None
         self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
@@ -173,6 +181,7 @@ class IgdbProvider(OnlineProvider):
                     self._by_id[str(row.get("id"))] = row
                     found.append(str(row.get("id")))
                 self._prefetch_times(found, titles[chunk[0]])
+                self._prefetch_popularity(found, titles[chunk[0]])
 
     def _prefetch_times(self, ids: List[str], request: Request) -> None:
         ids = [i for i in ids if i.isdigit()]
@@ -241,6 +250,53 @@ class IgdbProvider(OnlineProvider):
         games = self._query("games", DETAIL_FIELDS, "where id = {}; limit 1;".format(candidate_id), request)
         return self._detailed(games[0], request) if games else None
 
+    def _popularity_type_names(self, request: Request) -> Dict[int, str]:
+        if self._popularity_types is None:
+            rows = self._query("popularity_types", ("name",), "limit 100;", request)
+            if rows is None:
+                return {}
+            self._popularity_types = {
+                int(r["id"]): POPULARITY_NAMES[str(r.get("name") or "").strip().lower()]
+                for r in rows if isinstance(r.get("id"), int)
+                and str(r.get("name") or "").strip().lower() in POPULARITY_NAMES}
+        return self._popularity_types
+
+    def _prefetch_popularity(self, ids: List[str], request: Request) -> None:
+        ids = [i for i in ids if i.isdigit()]
+        types = self._popularity_type_names(request)
+        if not ids or not types:
+            return
+        body = "where game_id = ({}) & popularity_type = ({}); limit 500;".format(
+            ",".join(ids), ",".join(str(t) for t in types))
+        rows = self._query("popularity_primitives", (POPULARITY_FIELDS,), body, request)
+        if rows is None:
+            return
+        for game_id in ids:
+            self._popularity.setdefault(game_id, {})
+        for row in rows:
+            self._take_popularity(row, types)
+
+    def _take_popularity(self, row: dict, types: Dict[int, str]) -> None:
+        name = types.get(row.get("popularity_type"))
+        value = row.get("value")
+        if name and isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+            self._popularity.setdefault(str(row.get("game_id")), {})[name] = float(value)
+
+    def _game_popularity(self, game_id: str, request: Request) -> Dict[str, float]:
+        if game_id not in self._popularity:
+            types = self._popularity_type_names(request)
+            if not game_id.isdigit() or not types:
+                return {}
+            body = "where game_id = {} & popularity_type = ({}); limit 20;".format(
+                game_id, ",".join(str(t) for t in types))
+            rows = self._query("popularity_primitives", (POPULARITY_FIELDS,), body, request)
+            if rows is None:
+                return {}
+            self._popularity[game_id] = {}
+            for row in rows:
+                self._take_popularity(row, types)
+        return self._popularity[game_id]
+
     def _detailed(self, row: dict, request: Request) -> Dict[str, Any]:
         out = game_details(row, self._platform_id(request))
         # What the cabinet is says more than that the game is a port of itself
@@ -249,6 +305,9 @@ class IgdbProvider(OnlineProvider):
         times = self._time_to_beat(str(row.get("id")), request)
         if times:
             out["timetobeat"] = times
+        popularity = self._game_popularity(str(row.get("id")), request)
+        if popularity:
+            out["popularity"] = dict(popularity)
         return out
 
     def _time_to_beat(self, game_id: str, request: Request) -> Dict[str, int]:
