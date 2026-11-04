@@ -73,6 +73,7 @@ DETAIL_FIELDS = (
 )
 TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely"
 POPULARITY_FIELDS = "game_id,popularity_type,value"
+MEMBERSHIP_FIELDS = "game,collection.name,type.name"
 #: IGDB's own measures of interest in a game, by the names Kodi is given them under
 POPULARITY_NAMES = {"visits": "visits", "want to play": "wanttoplay", "playing": "playing",
                     "played": "played"}
@@ -143,6 +144,8 @@ class IgdbProvider(OnlineProvider):
         self._popularity: Dict[str, Dict[str, float]] = {}
         #: IGDB's popularity types, by id, once asked
         self._popularity_types: Optional[Dict[int, str]] = None
+        #: What each game asked about is to each series it is in, by id and series name
+        self._memberships: Dict[str, Dict[str, str]] = {}
         self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
@@ -183,6 +186,7 @@ class IgdbProvider(OnlineProvider):
                     found.append(str(row.get("id")))
                 self._prefetch_times(found, titles[chunk[0]])
                 self._prefetch_popularity(found, titles[chunk[0]])
+                self._prefetch_memberships(found, titles[chunk[0]])
 
     def _prefetch_times(self, ids: List[str], request: Request) -> None:
         ids = [i for i in ids if i.isdigit()]
@@ -298,6 +302,38 @@ class IgdbProvider(OnlineProvider):
                 self._take_popularity(row, types)
         return self._popularity[game_id]
 
+    def _take_membership(self, row: dict) -> None:
+        collection = row.get("collection") if isinstance(row.get("collection"), dict) else {}
+        kind = row.get("type") if isinstance(row.get("type"), dict) else {}
+        if collection.get("name") and kind.get("name"):
+            self._memberships.setdefault(str(row.get("game")), {})[str(collection["name"])] = str(kind["name"])
+
+    def _prefetch_memberships(self, ids: List[str], request: Request) -> None:
+        ids = [i for i in ids if i.isdigit()]
+        if not ids:
+            return
+        rows = self._query("collection_memberships", (MEMBERSHIP_FIELDS,),
+                           "where game = ({}); limit 500;".format(",".join(ids)), request)
+        if rows is None:
+            return
+        for game_id in ids:
+            self._memberships.setdefault(game_id, {})
+        for row in rows:
+            self._take_membership(row)
+
+    def _game_memberships(self, game_id: str, request: Request) -> Dict[str, str]:
+        if game_id not in self._memberships:
+            if not game_id.isdigit():
+                return {}
+            rows = self._query("collection_memberships", (MEMBERSHIP_FIELDS,),
+                               "where game = {}; limit 50;".format(game_id), request)
+            if rows is None:
+                return {}
+            self._memberships[game_id] = {}
+            for row in rows:
+                self._take_membership(row)
+        return self._memberships[game_id]
+
     def _detailed(self, row: dict, request: Request) -> Dict[str, Any]:
         out = game_details(row, self._platform_id(request))
         # What the cabinet is says more than that the game is a port of itself
@@ -313,6 +349,10 @@ class IgdbProvider(OnlineProvider):
                 out["regionaltitle"] = title
             if cover:
                 out.setdefault("art", {}).setdefault("boxfront", []).append({"url": cover, "region": region})
+        if out.get("series"):
+            spinoff = is_spinoff(self._game_memberships(str(row.get("id")), request).get(out["series"]))
+            if spinoff is not None:
+                out["spinoff"] = spinoff
         popularity = self._game_popularity(str(row.get("id")), request)
         if popularity:
             out["popularity"] = dict(popularity)
@@ -733,6 +773,16 @@ def time_to_beat(row: dict) -> Dict[str, int]:
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             out[key] = value
     return out
+
+
+def is_spinoff(membership: Optional[str]) -> Optional[bool]:
+    """Whether a game is a spin-off of its series, by IGDB's name for its place in it."""
+    kind = str(membership or "").lower()
+    if "spin" in kind:
+        return True
+    if "main" in kind:
+        return False
+    return None
 
 
 def localizations(game: dict) -> List[Tuple[str, str, str]]:
