@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .. import namer
 from .. import net
 from . import DATA_DIR, OnlineProvider, Request, platform_key, platform_keys, platform_names, read_aliases
+from . import wikidata
 
 BASE_URL = "https://api.igdb.com/v4/"
 #: Names collections use that IGDB's search does not find, each checked by hand
@@ -45,7 +46,7 @@ PREFETCH_CHUNK = 60
 TOKEN_MARGIN = 60
 SEARCH_FIELDS = ("id,name,alternative_names.name,first_release_date,platforms,game_type,category",
                  "id,name,alternative_names.name,first_release_date,platforms")
-DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_rating_count,"
+DETAIL_COMMON = ("name,slug,summary,storyline,first_release_date,total_rating,total_rating_count,"
                  "involved_companies.company.name,involved_companies.developer,involved_companies.publisher,"
                  "genres.name,themes.name,franchises.name,franchise.name,game_modes.name,"
                  "multiplayer_modes.offlinemax,multiplayer_modes.offlinecoop,multiplayer_modes.platform,"
@@ -151,6 +152,8 @@ class IgdbProvider(OnlineProvider):
         self._memberships: Dict[str, Dict[str, str]] = {}
         #: The characters in each game asked about, by id
         self._characters: Dict[str, List[Dict[str, str]]] = {}
+        #: The names Wikidata adds for each game, by IGDB slug
+        self._wikidata_names: Dict[str, List[str]] = {}
         self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
@@ -365,8 +368,9 @@ class IgdbProvider(OnlineProvider):
             self._characters.setdefault(game_id, [])
         for row in rows:
             self._take_character(row, ids)
+        self._wikidata_characters([str(self._by_id.get(i, {}).get("slug") or "") for i in ids], request)
 
-    def _game_characters(self, game_id: str, request: Request) -> List[Dict[str, str]]:
+    def _game_characters(self, game_id: str, slug: str, request: Request) -> List[Dict[str, str]]:
         if game_id not in self._characters:
             if not game_id.isdigit():
                 return []
@@ -377,7 +381,26 @@ class IgdbProvider(OnlineProvider):
             self._characters[game_id] = []
             for row in rows:
                 self._take_character(row, [game_id])
-        return self._characters[game_id]
+        names = self._wikidata_characters([slug], request).get(slug, [])
+        return with_names(self._characters[game_id], names)
+
+    def _wikidata_characters(self, slugs: List[str], request: Request) -> Dict[str, List[str]]:
+        """The character names Wikidata has for these games, by slug; IGDB records few."""
+        wanted = [s for s in dict.fromkeys(slugs) if s and s not in self._wikidata_names]
+        missing = []
+        for slug in wanted:
+            cached = self.cache.load("wikidata-characters-" + slug, request.cache_days())
+            if isinstance(cached, list):
+                self._wikidata_names[slug] = cached
+            else:
+                missing.append(slug)
+        if missing:
+            found = wikidata.characters_in_games(missing, self.log)
+            for slug in missing:
+                if found is not None:
+                    self._wikidata_names[slug] = found.get(slug, [])
+                    self.cache.save("wikidata-characters-" + slug, self._wikidata_names[slug])
+        return {s: self._wikidata_names.get(s, []) for s in slugs if s}
 
     def _detailed(self, row: dict, request: Request) -> Dict[str, Any]:
         out = game_details(row, self._platform_id(request))
@@ -394,7 +417,7 @@ class IgdbProvider(OnlineProvider):
                 out["regionaltitle"] = title
             if cover:
                 out.setdefault("art", {}).setdefault("boxfront", []).append({"url": cover, "region": region})
-        characters = self._game_characters(str(row.get("id")), request)
+        characters = self._game_characters(str(row.get("id")), str(row.get("slug") or ""), request)
         if characters:
             out["characters"] = [dict(c) for c in characters]
         if out.get("series"):
@@ -847,6 +870,19 @@ def localizations(game: dict) -> List[Tuple[str, str, str]]:
         cover = item.get("cover") if isinstance(item.get("cover"), dict) else {}
         url = IMAGE_URL.format("cover_big", cover["image_id"]) if cover.get("image_id") else ""
         out.append((found, str(item.get("name") or "").strip(), url))
+    return out
+
+
+def with_names(characters: List[Dict[str, str]], names: Sequence[str]) -> List[Dict[str, str]]:
+    """IGDB's characters, with their pictures, then any only Wikidata names, up to the limit."""
+    out = list(characters)
+    known = {c["name"].casefold() for c in out}
+    for name in names:
+        if len(out) >= MAX_CHARACTERS:
+            break
+        if name.casefold() not in known:
+            out.append({"name": name})
+            known.add(name.casefold())
     return out
 
 

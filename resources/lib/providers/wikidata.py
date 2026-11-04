@@ -9,17 +9,26 @@ transparent PNG logo and a photograph of the hardware, free and without a key.
 
 This provider describes machines only. Games are far better served by the
 catalogues that exist for them, and asking Wikidata about tens of thousands of
-files would be neither polite nor useful.
+files would be neither polite nor useful. The one thing it is asked about games
+is who appears in them, which IGDB records for few: characters_in_games() looks
+games up by IGDB's own name for them, a batch at a time.
 """
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from . import OnlineProvider, Request, platform_names
 
 API_URL = "https://www.wikidata.org/w/api.php"
+SPARQL_URL = "https://query.wikidata.org/sparql"
+
+#: IGDB game ID (P5794), which is IGDB's slug, and characters (P674)
+CHARACTERS_QUERY = ("SELECT ?slug ?characterLabel WHERE {{ VALUES ?slug {{ {} }} "
+                    "?game wdt:P5794 ?slug ; wdt:P674 ?character . "
+                    'SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en,mul". }} }}')
 
 #: Commons renders a file at a given width, turning an SVG logo into a
 #: transparent PNG on the way
@@ -79,6 +88,36 @@ def label(entity: Dict[str, Any]) -> str:
         if value:
             return str(value)
     return ""
+
+
+def characters_in_games(slugs: Sequence[str], log: Callable[..., None]) -> Optional[Dict[str, List[str]]]:
+    """The names of the characters Wikidata says appear in each game, by the game's IGDB slug,
+    or None if Wikidata could not be asked."""
+    slugs = [s for s in slugs if re.fullmatch(r"[a-z0-9][a-z0-9-]*", s)]
+    if not slugs:
+        return {}
+    query = CHARACTERS_QUERY.format(" ".join('"{}"'.format(s) for s in slugs))
+    url = SPARQL_URL + "?" + urllib.parse.urlencode({"query": query, "format": "json"})
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
+                                                       "Accept": "application/sparql-results+json"})
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            answer = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        log("wikidata answered HTTP {}".format(err.code), True)
+        return None
+    except Exception as err:
+        log("wikidata could not be reached: {}".format(err), True)
+        return None
+
+    out: Dict[str, List[str]] = {s: [] for s in slugs}
+    for row in ((answer or {}).get("results") or {}).get("bindings") or []:
+        slug = ((row.get("slug") or {}).get("value") or "")
+        name = ((row.get("characterLabel") or {}).get("value") or "").strip()
+        # An item with no name in English or every language is labelled with its id
+        if slug in out and name and not re.fullmatch(r"Q\d+", name) and name not in out[slug]:
+            out[slug].append(name)
+    return out
 
 
 class WikidataProvider(OnlineProvider):
