@@ -583,6 +583,9 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
                for title in names(game, field)]
     if related:
         out["related"] = related
+    languages = language_support(game)
+    if languages:
+        out["languagesupport"] = languages
     extra = wider(game)
     if extra:
         out["igdb"] = extra
@@ -651,6 +654,23 @@ def time_to_beat(row: dict) -> Dict[str, int]:
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             out[key] = value
     return out
+
+
+def language_support(game: dict) -> List[Dict[str, Any]]:
+    """Each language the game can be played in, and whether it is spoken, subtitled or in the menus."""
+    out: Dict[str, Dict[str, Any]] = {}
+    for item in game.get("language_supports") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("language"), dict):
+            continue
+        language = str(item["language"].get("name") or "").strip()
+        if not language:
+            continue
+        entry = out.setdefault(language, {"language": language})
+        kind = str((item.get("language_support_type") or {}).get("name") or "").lower()
+        for word, key in (("audio", "audio"), ("subtitle", "subtitles"), ("interface", "interface")):
+            if word in kind:
+                entry[key] = True
+    return list(out.values())
 
 
 def platform_info(row: dict) -> Dict[str, Any]:
