@@ -41,7 +41,8 @@ WIDER_REGIONS = {
 #: unique ids are merged separately, type by type.
 DETAIL_FIELDS = ("overview", "developers", "publishers", "genres", "collections",
                  "players", "coop", "ratings", "ageratings", "releasedate", "year",
-                 "achievements", "manual", "trailer", "originaltitle", "edition", "tags")
+                 "achievements", "manual", "trailer", "originaltitle", "edition", "tags",
+                 "timetobeat")
 PLATFORM_FIELDS = ("name", "manufacturer", "released", "discontinued", "overview")
 #: The platform Kodi files arcade sets under
 ARCADE_PLATFORM = "arcade"

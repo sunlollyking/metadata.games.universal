@@ -66,6 +66,7 @@ DETAIL_FIELDS = (
     DETAIL_COMMON + ",category,collection.name,age_ratings.rating,age_ratings.category,"
                     "release_dates.category,websites.category",
 )
+TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely"
 PLATFORM_LIST_FIELDS = "name,alternative_name,abbreviation,slug"
 PLATFORM_FIELDS = "name,alternative_name,abbreviation,summary,platform_logo.image_id,generation,versions.companies.company.name"
 #: Kinds that are the game itself rather than something sold alongside it.
@@ -126,6 +127,9 @@ class IgdbProvider(OnlineProvider):
         #: What a batch asked about, by platform and normalised name, and by id
         self._known: Dict[tuple, dict] = {}
         self._by_id: Dict[str, dict] = {}
+        #: How long players took to beat each game asked about, by id; empty
+        #: where IGDB has no times for it
+        self._times: Dict[str, dict] = {}
         self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
@@ -156,12 +160,28 @@ class IgdbProvider(OnlineProvider):
                 # An exact list; IGDB's case-insensitive operator does not take one
                 body = "where platforms = ({}) & name = ({}); limit 500;".format(platform_id, quoted)
                 rows = self._query("games", DETAIL_FIELDS, body, titles[chunk[0]])
+                found = []
                 for row in rows or []:
                     if not is_the_game(row):
                         continue
                     for key in title_keys(row):
                         self._known.setdefault((platform_id, key), row)
                     self._by_id[str(row.get("id"))] = row
+                    found.append(str(row.get("id")))
+                self._prefetch_times(found, titles[chunk[0]])
+
+    def _prefetch_times(self, ids: List[str], request: Request) -> None:
+        ids = [i for i in ids if i.isdigit()]
+        if not ids:
+            return
+        body = "where game_id = ({}); limit 500;".format(",".join(ids))
+        rows = self._query("game_time_to_beats", (TIME_TO_BEAT_FIELDS,), body, request)
+        if rows is None:
+            return  # asked again game by game
+        for game_id in ids:
+            self._times.setdefault(game_id, {})
+        for row in rows:
+            self._times[str(row.get("game_id"))] = row
 
     def find_alias(self, request: Request) -> List[dict]:
         platform_id = self._platform_id(request)
@@ -222,7 +242,21 @@ class IgdbProvider(OnlineProvider):
         # What the cabinet is says more than that the game is a port of itself
         if is_vs_system(request):
             out["edition"] = "Arcade"
+        times = self._time_to_beat(str(row.get("id")), request)
+        if times:
+            out["timetobeat"] = times
         return out
+
+    def _time_to_beat(self, game_id: str, request: Request) -> Dict[str, int]:
+        if game_id not in self._times:
+            if not game_id.isdigit():
+                return {}
+            rows = self._query("game_time_to_beats", (TIME_TO_BEAT_FIELDS,),
+                               "where game_id = {}; limit 1;".format(game_id), request)
+            if rows is None:
+                return {}
+            self._times[game_id] = rows[0] if rows else {}
+        return time_to_beat(self._times[game_id])
 
     def platform(self, request: Request) -> Optional[Dict[str, Any]]:
         platform_id = self._platform_id(request)
@@ -574,6 +608,16 @@ def wider(game: dict) -> Dict[str, Any]:
               for v in game.get("videos") or [] if isinstance(v, dict) and v.get("video_id")]
     if videos:
         out["videos"] = videos
+    return out
+
+
+def time_to_beat(row: dict) -> Dict[str, int]:
+    """IGDB's three times, in seconds, under the names Kodi gives them."""
+    out = {}
+    for field, key in (("hastily", "main"), ("normally", "extras"), ("completely", "complete")):
+        value = row.get(field)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            out[key] = value
     return out
 
 
