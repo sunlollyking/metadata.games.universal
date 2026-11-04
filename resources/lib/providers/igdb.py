@@ -63,8 +63,10 @@ DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_r
                  "dlcs.name,expansions.name,remakes.name,remasters.name,ports.name")
 DETAIL_FIELDS = (
     DETAIL_COMMON + ",game_type,collections.name,age_ratings.rating_category,age_ratings.organization,"
+                    "age_ratings.rating_content_descriptions.description,"
                     "release_dates.date_format,websites.type.type,language_supports.language_support_type.name",
     DETAIL_COMMON + ",category,collection.name,age_ratings.rating,age_ratings.category,"
+                    "age_ratings.content_descriptions.description,"
                     "release_dates.category,websites.category",
 )
 TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely"
@@ -481,7 +483,11 @@ def age_ratings(game: dict) -> List[dict]:
         else:
             value = RATINGS.get(item.get("rating"))
         if board and value:
-            out.append({"board": board, "value": value, "descriptors": ""})
+            # What the board rated it for, such as violence or bad language
+            reasons = [str(d["description"]) for d in
+                       item.get("rating_content_descriptions") or item.get("content_descriptions") or []
+                       if isinstance(d, dict) and d.get("description")]
+            out.append({"board": board, "value": value, "descriptors": ", ".join(reasons)})
     return out
 
 
