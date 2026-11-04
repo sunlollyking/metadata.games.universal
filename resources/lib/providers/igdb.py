@@ -520,6 +520,11 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
         "uniqueids": {"igdb": str(game.get("id"))},
         "art": art(game),
     }
+    # A series is the run of games a title belongs to, like Mario Kart; a
+    # franchise is wider, like Mario, and stays a collection only
+    series = names(game, "collections") or names(game, "collection")
+    if series:
+        out["series"] = series[0]
     edition = EDITION_NAMES.get(game.get("game_type", game.get("category")))
     if edition:
         out["edition"] = edition
