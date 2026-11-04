@@ -74,6 +74,9 @@ DETAIL_FIELDS = (
 TIME_TO_BEAT_FIELDS = "game_id,hastily,normally,completely"
 POPULARITY_FIELDS = "game_id,popularity_type,value"
 MEMBERSHIP_FIELDS = "game,collection.name,type.name"
+CHARACTER_FIELDS = "name,games,mug_shot.image_id"
+#: More characters than a game's page lists
+MAX_CHARACTERS = 30
 #: IGDB's own measures of interest in a game, by the names Kodi is given them under
 POPULARITY_NAMES = {"visits": "visits", "want to play": "wanttoplay", "playing": "playing",
                     "played": "played"}
@@ -146,6 +149,8 @@ class IgdbProvider(OnlineProvider):
         self._popularity_types: Optional[Dict[int, str]] = None
         #: What each game asked about is to each series it is in, by id and series name
         self._memberships: Dict[str, Dict[str, str]] = {}
+        #: The characters in each game asked about, by id
+        self._characters: Dict[str, List[Dict[str, str]]] = {}
         self.aliases = read_aliases(ALIASES_PATH)
 
     def prefetch(self, requests: Sequence[Request]) -> None:
@@ -187,6 +192,7 @@ class IgdbProvider(OnlineProvider):
                 self._prefetch_times(found, titles[chunk[0]])
                 self._prefetch_popularity(found, titles[chunk[0]])
                 self._prefetch_memberships(found, titles[chunk[0]])
+                self._prefetch_characters(found, titles[chunk[0]])
 
     def _prefetch_times(self, ids: List[str], request: Request) -> None:
         ids = [i for i in ids if i.isdigit()]
@@ -334,6 +340,45 @@ class IgdbProvider(OnlineProvider):
                 self._take_membership(row)
         return self._memberships[game_id]
 
+    def _take_character(self, row: dict, wanted: List[str]) -> None:
+        name = str(row.get("name") or "").strip()
+        if not name:
+            return
+        character = {"name": name}
+        mug_shot = row.get("mug_shot") if isinstance(row.get("mug_shot"), dict) else {}
+        if mug_shot.get("image_id"):
+            character["thumb"] = IMAGE_URL.format("cover_big", mug_shot["image_id"])
+        for game in row.get("games") or []:
+            listed = self._characters.get(str(game))
+            if str(game) in wanted and listed is not None and len(listed) < MAX_CHARACTERS:
+                listed.append(character)
+
+    def _prefetch_characters(self, ids: List[str], request: Request) -> None:
+        ids = [i for i in ids if i.isdigit()]
+        if not ids:
+            return
+        rows = self._query("characters", (CHARACTER_FIELDS,),
+                           "where games = ({}); limit 500;".format(",".join(ids)), request)
+        if rows is None:
+            return
+        for game_id in ids:
+            self._characters.setdefault(game_id, [])
+        for row in rows:
+            self._take_character(row, ids)
+
+    def _game_characters(self, game_id: str, request: Request) -> List[Dict[str, str]]:
+        if game_id not in self._characters:
+            if not game_id.isdigit():
+                return []
+            rows = self._query("characters", (CHARACTER_FIELDS,),
+                               "where games = ({}); limit {};".format(game_id, MAX_CHARACTERS), request)
+            if rows is None:
+                return []
+            self._characters[game_id] = []
+            for row in rows:
+                self._take_character(row, [game_id])
+        return self._characters[game_id]
+
     def _detailed(self, row: dict, request: Request) -> Dict[str, Any]:
         out = game_details(row, self._platform_id(request))
         # What the cabinet is says more than that the game is a port of itself
@@ -349,6 +394,9 @@ class IgdbProvider(OnlineProvider):
                 out["regionaltitle"] = title
             if cover:
                 out.setdefault("art", {}).setdefault("boxfront", []).append({"url": cover, "region": region})
+        characters = self._game_characters(str(row.get("id")), request)
+        if characters:
+            out["characters"] = [dict(c) for c in characters]
         if out.get("series"):
             spinoff = is_spinoff(self._game_memberships(str(row.get("id")), request).get(out["series"]))
             if spinoff is not None:
