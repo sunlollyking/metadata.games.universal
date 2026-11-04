@@ -50,6 +50,7 @@ DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_r
                  "genres.name,themes.name,franchises.name,franchise.name,game_modes.name,"
                  "multiplayer_modes.offlinemax,multiplayer_modes.offlinecoop,multiplayer_modes.platform,"
                  "multiplayer_modes.onlinemax,multiplayer_modes.splitscreen,multiplayer_modes.campaigncoop,"
+                 "multiplayer_modes.dropin,multiplayer_modes.offlinecoopmax,"
                  "cover.image_id,screenshots.image_id,artworks.image_id,"
                  "release_dates.date,release_dates.platform,release_dates.region,"
                  # Everything below is recorded rather than shown today, so that
@@ -542,6 +543,13 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
             out["players"] = {"min": 1, "max": mode["offlinemax"]}
         if "offlinecoop" in mode:
             out["coop"] = bool(mode["offlinecoop"])
+        # What makes a game one to play together on the sofa
+        for field, key in (("dropin", "dropin"), ("splitscreen", "splitscreen")):
+            if isinstance(mode.get(field), bool):
+                out[key] = mode[field]
+        coop_players = mode.get("offlinecoopmax")
+        if isinstance(coop_players, int) and not isinstance(coop_players, bool) and coop_players > 0:
+            out["coopplayers"] = coop_players
     rating = game.get("total_rating")
     if isinstance(rating, (int, float)) and not isinstance(rating, bool):
         out["ratings"] = {"igdb": {"rating": round(float(rating), 1), "max": 100,
