@@ -504,7 +504,9 @@ class Universal:
                     if extra.get("title"):
                         names = [extra["title"], extra.get("originaltitle")] + list(extra.get("names") or [])
                         native = extra.get("nativename") or extra.get("originaltitle")
-                        offered.append((provider.name, str(extra["title"]), names, native))
+                        # A source that knows the game's title in the player's region offers that
+                        title = extra.get("regionaltitle") or extra["title"]
+                        offered.append((provider.name, str(title), names, native))
                     if is_just_the_title(extra.get("overview"), str(details.get("title") or "")):
                         extra.pop("overview", None)
                     merge(details, extra, DETAIL_FIELDS)

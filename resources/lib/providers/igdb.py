@@ -24,7 +24,7 @@ https://images.igdb.com/igdb/image/upload/t_<size>/<image_id>.jpg.
 """
 import os
 import time
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import namer
 from .. import net
@@ -61,7 +61,8 @@ DETAIL_COMMON = ("name,summary,storyline,first_release_date,total_rating,total_r
                  "similar_games.name,aggregated_rating,aggregated_rating_count,"
                  "rating,rating_count,hypes,websites.url,"
                  "dlcs.name,expansions.name,remakes.name,remasters.name,ports.name,"
-                 "standalone_expansions.name")
+                 "standalone_expansions.name,game_localizations.name,game_localizations.region.name,"
+                 "game_localizations.region.identifier,game_localizations.cover.image_id")
 DETAIL_FIELDS = (
     DETAIL_COMMON + ",game_type,collections.name,age_ratings.rating_category,age_ratings.organization,"
                     "age_ratings.rating_content_descriptions.description,"
@@ -305,6 +306,13 @@ class IgdbProvider(OnlineProvider):
         times = self._time_to_beat(str(row.get("id")), request)
         if times:
             out["timetobeat"] = times
+        regional = regional_localization(row, request.preferred_regions())
+        if regional:
+            region, title, cover = regional
+            if title:
+                out["regionaltitle"] = title
+            if cover:
+                out.setdefault("art", {}).setdefault("boxfront", []).append({"url": cover, "region": region})
         popularity = self._game_popularity(str(row.get("id")), request)
         if popularity:
             out["popularity"] = dict(popularity)
@@ -599,6 +607,10 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
     if native and namer.normalise(native) != namer.normalise(out["title"]):
         out["originaltitle"] = native
     out["names"] = [out["title"]] + names(game, "alternative_names")
+    # A game sold under another name in a region: Probotector in Europe
+    for _, title, _ in localizations(game):
+        if title and title not in out["names"]:
+            out["names"].append(title)
     date = release_date(game, platform_id)
     if date:
         out["releasedate"] = date
@@ -653,6 +665,11 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
         out["igdb"] = extra
     return out
 
+
+#: IGDB's regions for a game's localizations, by the names the providers give regions
+LOCALIZATION_REGIONS = {"north america": "USA", "worldwide": "World", "europe": "Europe",
+                        "japan": "Japan", "korea": "Korea", "china": "China", "asia": "Asia",
+                        "australia": "Australia", "new zealand": "New Zealand", "brazil": "Brazil"}
 
 #: Games IGDB relates to this one, and what each is to it
 RELATED = (("remakes", "remake"), ("remasters", "remaster"), ("ports", "port"),
@@ -716,6 +733,39 @@ def time_to_beat(row: dict) -> Dict[str, int]:
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             out[key] = value
     return out
+
+
+def localizations(game: dict) -> List[Tuple[str, str, str]]:
+    """Each localization's region, as the providers name regions, its title and its cover."""
+    out = []
+    for item in game.get("game_localizations") or []:
+        if not isinstance(item, dict):
+            continue
+        region = item.get("region") if isinstance(item.get("region"), dict) else {}
+        found = (LOCALIZATION_REGIONS.get(str(region.get("name") or "").strip().lower())
+                 or LOCALIZATION_REGIONS.get(str(region.get("identifier") or "").strip().lower()))
+        if not found:
+            continue
+        cover = item.get("cover") if isinstance(item.get("cover"), dict) else {}
+        url = IMAGE_URL.format("cover_big", cover["image_id"]) if cover.get("image_id") else ""
+        out.append((found, str(item.get("name") or "").strip(), url))
+    return out
+
+
+def regional_localization(game: dict, preferred: Sequence[str]) -> Optional[Tuple[str, str, str]]:
+    """The game's name and cover in the player's first region IGDB names, where it was localized there.
+
+    A region further down the player's list doesn't count: what IGDB calls the game, and its own
+    cover, are what was sold in the player's region unless IGDB says otherwise.
+    """
+    named = {region.lower() for region in LOCALIZATION_REGIONS.values()}
+    for region in preferred:
+        if region in named:
+            for found, title, cover in localizations(game):
+                if found.lower() == region and (title or cover):
+                    return found, title, cover
+            return None
+    return None
 
 
 def language_support(game: dict) -> List[Dict[str, Any]]:
