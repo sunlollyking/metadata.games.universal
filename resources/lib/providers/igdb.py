@@ -575,6 +575,9 @@ def game_details(game: dict, platform_id: str) -> Dict[str, Any]:
         # A video IGDB calls a trailer, else whatever it lists first
         named = [v for v in clips if "trailer" in str(v.get("name") or "").lower()]
         out["trailer"] = TRAILER.format((named or clips)[0]["video_id"])
+    similar = names(game, "similar_games")
+    if similar:
+        out["similar"] = similar
     extra = wider(game)
     if extra:
         out["igdb"] = extra
