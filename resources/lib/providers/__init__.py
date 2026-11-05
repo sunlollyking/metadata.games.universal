@@ -31,6 +31,7 @@ DISC_EXTENSIONS = frozenset((
 #: Drive or Atari 2600 game is as often a .bin as a PlayStation one. For these
 #: the machine decides, by a word in its name.
 RAW_DUMP_EXTENSIONS = frozenset(("bin", "img"))
+ARCADE_PLATFORM = "arcade"
 DISC_MACHINE_WORDS = frozenset((
     "cd", "playstation", "saturn", "dreamcast", "gamecube", "wii", "3do", "xbox",
 ))
@@ -116,6 +117,9 @@ def platform_names(request: Request) -> List[str]:
 
 def medium_art_type(request: "Request") -> str:
     """What a picture of the game's own medium should be called."""
+    # An arcade game was sold as a cabinet, which is what its "medium" shows
+    if request.get("platform") == ARCADE_PLATFORM:
+        return "cabinet"
     name = request.get("filename") or request.get("path")
     _, _, extension = name.rpartition(".")
     extension = extension.lower()

@@ -46,6 +46,13 @@ class MediumTest(unittest.TestCase):
                                          ("unknown.bin", "", "cartridge")):
             self.assertEqual(medium_art_type(request(name, platform)), expected, (name, platform))
 
+    def test_an_arcade_game_is_a_cabinet(self):
+        for name in ("1942.zip", "sf2.7z", "kof98.chd"):
+            self.assertEqual(medium_art_type(request(name, "arcade")), "cabinet", name)
+        art = screenscraper.game_details(ET.fromstring(JEU), request("1942.zip", "arcade"))["art"]
+        self.assertEqual(art["cabinet"][0]["url"], "http://x/medium.png")
+        self.assertNotIn("cartridge", art)
+
     def test_screenscraper_names_the_medium_after_the_dump(self):
         for name, expected in (("Sonic CD (USA).cue", "disc"), ("Sonic (USA).md", "cartridge")):
             art = screenscraper.game_details(ET.fromstring(JEU), request(name))["art"]
